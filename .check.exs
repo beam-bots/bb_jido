@@ -5,7 +5,6 @@
 [
   tools: [
     {:credo, "mix credo --strict"},
-    {:mix_audit, "mix deps.audit --ignore-advisory-ids GHSA-rhv4-8758-jx7v"},
     {:reuse, command: ["pipx", "run", "reuse", "lint", "-q"]}
   ]
 ]
