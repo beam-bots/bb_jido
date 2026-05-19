@@ -11,4 +11,11 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
-## [v0.1.0](https://github.com/beam-bots/bb_jido/compare/v0.1.0...v0.1.0) (2026-03-29)
+## [v0.1.1](https://github.com/beam-bots/bb_jido/compare/v0.1.1...v0.1.1) (2026-05-19)
+
+
+
+
+### Features:
+
+* initial implementation of proposal 0009 (bb_jido) (#11) by James Harton
