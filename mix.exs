@@ -28,7 +28,11 @@ defmodule BB.Jido.MixProject do
     ]
   end
 
-  defp dialyzer, do: []
+  defp dialyzer do
+    [
+      plt_add_apps: [:mix]
+    ]
+  end
 
   defp package do
     [
@@ -55,7 +59,10 @@ defmodule BB.Jido.MixProject do
         ["README.md", "CHANGELOG.md"]
         |> Enum.concat(Path.wildcard("documentation/**/*.{md,livemd,cheatmd}")),
       groups_for_extras: [
-        Tutorials: ~r/tutorials\//
+        Tutorials: ~r/tutorials\//,
+        "How-to Guides": ~r/how-to\//,
+        Explanation: ~r/topics\//,
+        Reference: ~r/reference\//
       ],
       source_ref: "main",
       source_url: "https://github.com/beam-bots/bb_jido"
@@ -68,14 +75,21 @@ defmodule BB.Jido.MixProject do
   defp deps do
     [
       {:bb, bb_dep("~> 0.16")},
+      # Override transitive decimal 2.x (pinned by zoi via jido_signal) to
+      # pick up the fix for GHSA-rhv4-8758-jx7v. Remove once zoi relaxes
+      # its `decimal ~> 2.0` constraint.
+      {:decimal, "~> 3.0", override: true},
+      {:jido, "~> 2.2"},
+      {:reactor, "~> 1.0"},
 
       # dev/test
+      bb_reactor_test_dep(),
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
       {:ex_check, "~> 0.16", only: [:dev, :test], runtime: false},
       {:ex_doc, ">= 0.0.0", only: [:dev, :test], runtime: false},
       {:git_ops, "~> 2.9", only: [:dev, :test], runtime: false},
-      {:igniter, "~> 0.6", only: [:dev, :test], runtime: false},
+      {:igniter, "~> 0.6", optional: true},
       {:mimic, "~> 2.2", only: :test, runtime: false},
       {:mix_audit, "~> 2.1", only: [:dev, :test], runtime: false}
     ]
@@ -90,6 +104,23 @@ defmodule BB.Jido.MixProject do
       "local" -> [path: "../bb", override: true]
       "main" -> [git: "https://github.com/beam-bots/bb.git", override: true]
       version -> "~> #{version}"
+    end
+  end
+
+  defp bb_reactor_test_dep do
+    case System.get_env("BB_VERSION") do
+      nil ->
+        {:bb_reactor, "~> 0.2", only: [:dev, :test]}
+
+      "local" ->
+        {:bb_reactor, path: "../bb_reactor", only: [:dev, :test], override: true}
+
+      "main" ->
+        {:bb_reactor,
+         git: "https://github.com/beam-bots/bb_reactor.git", only: [:dev, :test], override: true}
+
+      _version ->
+        {:bb_reactor, "~> 0.2", only: [:dev, :test]}
     end
   end
 end
