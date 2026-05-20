@@ -75,10 +75,6 @@ defmodule BB.Jido.MixProject do
   defp deps do
     [
       {:bb, bb_dep("~> 0.16")},
-      # Override transitive decimal 2.x (pinned by zoi via jido_signal) to
-      # pick up the fix for GHSA-rhv4-8758-jx7v. Remove once zoi relaxes
-      # its `decimal ~> 2.0` constraint.
-      {:decimal, "~> 3.0", override: true},
       {:jido, "~> 2.2"},
       {:reactor, "~> 1.0"},
 
