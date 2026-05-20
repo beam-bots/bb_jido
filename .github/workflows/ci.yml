@@ -22,6 +22,6 @@ jobs:
     uses: beam-bots/.github/.github/workflows/elixir-ci.yml@36cb1796a5a74f40fa2438ec079a3bff6490089d # main
     with:
       enable-docs-deploy: true
-      enable-release: false
+      enable-release: true
     secrets:
       HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
