@@ -11,7 +11,9 @@ SPDX-License-Identifier: Apache-2.0
 [![CI](https://github.com/beam-bots/bb_jido/actions/workflows/ci.yml/badge.svg)](https://github.com/beam-bots/bb_jido/actions/workflows/ci.yml)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache--2.0-green.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Hex version badge](https://img.shields.io/hexpm/v/bb_jido.svg)](https://hex.pm/packages/bb_jido)
+[![Hexdocs badge](https://img.shields.io/badge/docs-hexdocs-purple)](https://hexdocs.pm/bb_jido)
 [![REUSE status](https://api.reuse.software/badge/github.com/beam-bots/bb_jido)](https://api.reuse.software/info/github.com/beam-bots/bb_jido)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/beam-bots/bb_jido)
 
 Autonomous agents for [Beam Bots](https://github.com/beam-bots/bb), built on
 the [Jido](https://hex.pm/packages/jido) agent framework.
