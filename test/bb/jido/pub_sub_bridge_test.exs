@@ -42,13 +42,23 @@ defmodule BB.Jido.PubSubBridgeTest do
         topics: [[:state_machine]]
       )
 
-    # Arming the robot publishes a :disarmed → :armed transition.
+    # Arming runs as a command, so the robot emits several state-machine
+    # transitions; we only require that the :armed one is forwarded as a
+    # signal, regardless of how the intermediate transitions interleave.
     {:ok, cmd} = TestRobot.arm(%{})
     {:ok, :armed, _} = BB.Command.await(cmd)
 
+    assert_armed_signal_received()
+  end
+
+  defp assert_armed_signal_received do
     assert_receive {:agent_received, signal}, 1_000
     assert signal.type == "bb.state.transition"
-    assert %Message{payload: %Transition{to: :armed}} = signal.data.message
+
+    case signal.data.message do
+      %Message{payload: %Transition{to: :armed}} -> :ok
+      %Message{payload: %Transition{}} -> assert_armed_signal_received()
+    end
   end
 
   test "throttling drops repeat signals of the same type within the window", %{agent: agent} do
