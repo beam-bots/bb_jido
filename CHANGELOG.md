@@ -11,6 +11,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.1.3](https://github.com/beam-bots/bb_jido/compare/v0.1.2...v0.1.3) (2026-06-25)
+
+
+
+
+### Bug Fixes:
+
+* deflake the state-machine transition forwarding test (#29) by James Harton
+
 ## [v0.1.2](https://github.com/beam-bots/bb_jido/compare/v0.1.1...v0.1.2) (2026-05-20)
 
 
