@@ -14,8 +14,8 @@ pattern-match without inspecting strings.
 
 | Error | When | Returned by |
 |---|---|---|
-| `:safety_disarmed` | Command process exited with `:disarmed` (robot was disarmed mid-flight). | `BB.Jido.Action.Command` |
-| `{:command_failed, reason}` | Any other command failure: command callback returned an error, exited unexpectedly, timed out, or `apply(robot, command, [goal])` itself failed. | `BB.Jido.Action.Command` |
+| `:safety_disarmed` | The robot rejected the command because it was disarmed (`%BB.Error.State.NotAllowed{current_state: :disarmed}`), or the command surfaced `:disarmed` / `{:shutdown, :disarmed}` as its failure reason. | `BB.Jido.Action.Command` |
+| `{:command_failed, reason}` | Any other command failure: the command's `result/1` returned an error, the process exited unexpectedly, or the await timed out. `reason` is wrapped exactly once — failures `BB.Command.await/2` already reports as `{:command_failed, reason}` (crash, `:timeout`, `:noproc`) keep their inner reason. | `BB.Jido.Action.Command` |
 | `{:reactor_failed, errors}` | Reactor returned `{:error, errors}` — at least one step failed and any defined compensation has already run. | `BB.Jido.Action.Reactor` |
 | `{:reactor_halted, halted}` | Reactor returned `{:halted, halted}` — execution was paused (e.g. a step asked to halt). `halted` is the halted reactor struct. | `BB.Jido.Action.Reactor` |
 | `:timeout` | `WaitForState` ran out of time before the target state was reached. | `BB.Jido.Action.WaitForState` |
@@ -27,6 +27,24 @@ pattern-match without inspecting strings.
 |---|---|
 | `{:safety_not_armed, state}` | The robot's safety state is `state` (one of `:disarmed`, `:disarming`, `:error`). The wrapped `run/2` was not invoked. |
 | `:robot_not_specified` | Neither `params[:robot]` nor `context[:robot]` provided a robot module. |
+
+A disarm that happens *mid-flight* stops the command process, but awaiting
+callers still receive whatever the command's `result/1` callback returns —
+so a mid-flight disarm only maps to `:safety_disarmed` if the command's
+`result/1` surfaces `:disarmed` (or `{:shutdown, :disarmed}`) as its error
+reason. A raise inside the command function itself (e.g. an unknown
+command name) propagates as an exception rather than a tagged tuple.
+
+## Agent-routed execution
+
+The tags above describe direct `run/2` calls (including reactor steps).
+When an action runs via a signal route, `Jido.Exec` normalises error
+tuples into `Jido.Action.Error` exception structs — the tag then appears
+under the error's details rather than as a bare tuple. `Jido.Exec` also
+enforces its own default 30s execution timeout independent of the
+actions' `:timeout` params; raise the route/instruction `:timeout`
+option (or the `:jido_action` `:default_timeout` config) for longer
+commands.
 
 ## Pattern-matching cheatsheet
 

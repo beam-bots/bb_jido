@@ -133,7 +133,8 @@ plugins: [
 
 Actions return a consistent tagged-error set:
 
-- `{:error, :safety_disarmed}` — command exited because the robot was disarmed
+- `{:error, :safety_disarmed}` — command rejected (or stopped) because the
+  robot was disarmed
 - `{:error, {:command_failed, reason}}` — any other command failure
 - `{:error, {:reactor_failed, errors}}` — reactor returned errors
 - `{:error, {:reactor_halted, reason}}` — reactor was halted mid-flight
