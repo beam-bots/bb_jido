@@ -22,7 +22,7 @@ defmodule BB.Jido.Action.CommandTest do
                %{}
              )
 
-    assert result.robot == TestRobot
+    refute Map.has_key?(result, :robot)
     assert result.command == :test_succeed
     assert result.goal == %{value: :hello}
     assert result.outcome == :hello

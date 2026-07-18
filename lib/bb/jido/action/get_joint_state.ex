@@ -13,7 +13,10 @@ defmodule BB.Jido.Action.GetJointState do
 
   ## Returns
 
-  `{:ok, %{robot: ..., positions: %{joint => rad}, velocities: %{joint => rad_s}}}`.
+  `{:ok, %{positions: %{joint => rad}, velocities: %{joint => rad_s}}, effects}`
+  where `effects` contains a `Jido.Agent.StateOp.SetPath` that stores the
+  same map at `agent.state.robot.last_joint_state` when the action runs
+  through an agent with `BB.Jido.Plugin.Robot` mounted.
   """
 
   use Jido.Action,
@@ -24,14 +27,15 @@ defmodule BB.Jido.Action.GetJointState do
     ]
 
   alias BB.Robot.Runtime
+  alias Jido.Agent.StateOp
 
   @impl Jido.Action
   def run(%{robot: robot}, _context) do
-    {:ok,
-     %{
-       robot: robot,
-       positions: Runtime.positions(robot),
-       velocities: Runtime.velocities(robot)
-     }}
+    joint_state = %{
+      positions: Runtime.positions(robot),
+      velocities: Runtime.velocities(robot)
+    }
+
+    {:ok, joint_state, [%StateOp.SetPath{path: [:robot, :last_joint_state], value: joint_state}]}
   end
 end

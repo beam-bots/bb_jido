@@ -32,8 +32,9 @@ The plugin owns the agent's `:robot` state slice:
 | Field | Type | Initial | Description |
 |---|---|---|---|
 | `:robot` | `module()` | the configured robot | Mirror of `config[:robot]` for convenience |
-| `:safety_state` | `atom()` | `:unknown` | Cached safety state; updated when a `bb.state.transition` signal arrives |
-| `:last_joint_state` | `map()` | `%{}` | Reserved for joint-state caching (not yet populated) |
+| `:safety_state` | `atom()` | `:unknown` | Cached safety state (`:armed`, `:disarmed`, `:disarming`, or `:error`); updated by the routed `BB.Jido.Action.UpdateSafetyState` when a `bb.state.transition` signal carries a safety transition |
+| `:last_safety_error` | `BB.Safety.HardwareError.t() \| nil` | `nil` | Last hardware error; updated by the routed `BB.Jido.Action.RecordSafetyError` when the `[:safety, :error]` topic is bridged |
+| `:last_joint_state` | `map()` | `%{}` | Last read `%{positions: ..., velocities: ...}`; updated whenever `BB.Jido.Action.GetJointState` runs |
 
 ### Built-in actions
 
@@ -42,7 +43,9 @@ The plugin owns the agent's `:robot` state slice:
 | `BB.Jido.Action.Command` | `bb.command.execute` | Run a BB command via `BB.Command.await/2` |
 | `BB.Jido.Action.Reactor` | `bb.reactor.run` | Run a `bb_reactor` workflow with `context.private.bb_robot` set |
 | `BB.Jido.Action.WaitForState` | `bb.state.wait` | Block until robot reaches a target state |
-| `BB.Jido.Action.GetJointState` | (none — call directly) | Read positions/velocities from `BB.Robot.Runtime` |
+| `BB.Jido.Action.GetJointState` | (none — call directly) | Read positions/velocities from `BB.Robot.Runtime`; caches them at `:last_joint_state` |
+| `BB.Jido.Action.UpdateSafetyState` | `bb.state.transition` | Cache safety transitions at `:safety_state` |
+| `BB.Jido.Action.RecordSafetyError` | `bb.safety.error` | Record hardware errors at `:last_safety_error` |
 
 ### Child processes
 

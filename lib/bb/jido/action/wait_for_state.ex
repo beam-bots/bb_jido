@@ -19,7 +19,7 @@ defmodule BB.Jido.Action.WaitForState do
 
   ## Returns
 
-  - `{:ok, %{robot: ..., state: target}}` when the state is reached.
+  - `{:ok, %{state: target}}` when the state is reached.
   - `{:error, :timeout}` if the timeout elapses first.
 
   ## Warning
@@ -53,7 +53,7 @@ defmodule BB.Jido.Action.WaitForState do
 
     case Runtime.state(robot) do
       ^target ->
-        {:ok, %{robot: robot, state: target}}
+        {:ok, %{state: target}}
 
       _other ->
         wait_for_transition(robot, target, timeout)
@@ -64,7 +64,7 @@ defmodule BB.Jido.Action.WaitForState do
     case BB.PubSub.subscribe(robot, [:state_machine], message_types: [Transition]) do
       {:ok, _pid} ->
         try do
-          receive_transition(robot, target, timeout)
+          receive_transition(target, timeout)
         after
           BB.PubSub.unsubscribe(robot, [:state_machine])
         end
@@ -74,13 +74,13 @@ defmodule BB.Jido.Action.WaitForState do
     end
   end
 
-  defp receive_transition(robot, target, timeout) do
+  defp receive_transition(target, timeout) do
     receive do
       {:bb, [:state_machine], %Message{payload: %Transition{to: ^target}}} ->
-        {:ok, %{robot: robot, state: target}}
+        {:ok, %{state: target}}
 
       {:bb, [:state_machine], %Message{payload: %Transition{}}} ->
-        receive_transition(robot, target, timeout)
+        receive_transition(target, timeout)
     after
       timeout ->
         {:error, :timeout}

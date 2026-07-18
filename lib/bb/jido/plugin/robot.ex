@@ -11,10 +11,16 @@ defmodule BB.Jido.Plugin.Robot do
   - The standard robot-control actions: `BB.Jido.Action.Command`,
     `BB.Jido.Action.Reactor`, `BB.Jido.Action.WaitForState`, and
     `BB.Jido.Action.GetJointState`.
-  - Default signal routes for the canonical `bb.*` signal types.
-  - Plugin-owned state: the configured `:robot` module and a cached
-    `:safety_state` (updated automatically when `bb.state.transition`
-    signals arrive).
+  - Default signal routes for the canonical `bb.*` signal types, including
+    routes that keep the plugin state current: `bb.state.transition` is
+    routed to `BB.Jido.Action.UpdateSafetyState` and `bb.safety.error` to
+    `BB.Jido.Action.RecordSafetyError`.
+  - Plugin-owned state under `agent.state.robot`: the configured `:robot`
+    module, a cached `:safety_state` (updated by the routed
+    `UpdateSafetyState` action whenever a safety transition arrives), the
+    `:last_safety_error` (updated by `RecordSafetyError` when the
+    `[:safety, :error]` topic is bridged), and `:last_joint_state` (updated
+    whenever `GetJointState` runs).
   - A supervised `BB.Jido.PubSubBridge` mounted under the agent process that
     forwards BB PubSub events to the agent as Jido signals.
 
@@ -25,10 +31,14 @@ defmodule BB.Jido.Plugin.Robot do
 
   - `:robot` — robot module (required).
   - `:topics` — list of `BB.PubSub` paths to bridge (default
-    `[[:state_machine]]`).
+    `[[:state_machine]]`; replaces the default rather than adding to it).
   - `:message_types` — payload modules to filter on at subscribe time
     (default `[]`, meaning no filter).
   - `:throttle_ms` — optional per-signal-type throttle in milliseconds.
+
+  Bridged topics beyond the defaults need matching signal routes on the
+  agent (or plugin) — signals without a route are reported as routing
+  errors through the agent's error policy.
 
   ## Example
 
@@ -49,11 +59,15 @@ defmodule BB.Jido.Plugin.Robot do
       BB.Jido.Action.Command,
       BB.Jido.Action.GetJointState,
       BB.Jido.Action.Reactor,
+      BB.Jido.Action.RecordSafetyError,
+      BB.Jido.Action.UpdateSafetyState,
       BB.Jido.Action.WaitForState
     ],
     signal_routes: [
       {"command.execute", BB.Jido.Action.Command},
       {"reactor.run", BB.Jido.Action.Reactor},
+      {"safety.error", BB.Jido.Action.RecordSafetyError},
+      {"state.transition", BB.Jido.Action.UpdateSafetyState},
       {"state.wait", BB.Jido.Action.WaitForState}
     ]
 
@@ -67,6 +81,7 @@ defmodule BB.Jido.Plugin.Robot do
          %{
            robot: robot,
            safety_state: :unknown,
+           last_safety_error: nil,
            last_joint_state: %{}
          }}
 
@@ -99,27 +114,6 @@ defmodule BB.Jido.Plugin.Robot do
       type: :worker
     }
   end
-
-  @impl Jido.Plugin
-  def handle_signal(%Jido.Signal{type: "bb.state.transition"} = signal, context) do
-    case signal.data do
-      %{message: %BB.Message{payload: %BB.StateMachine.Transition{to: to}}} ->
-        update_safety_state(context, to)
-        {:ok, :continue}
-
-      _ ->
-        {:ok, :continue}
-    end
-  end
-
-  def handle_signal(_signal, _context), do: {:ok, :continue}
-
-  defp update_safety_state(%{agent_ref: ref}, state) when not is_nil(ref) do
-    send(ref, {:bb_jido, :safety_state, state})
-    :ok
-  end
-
-  defp update_safety_state(_context, _state), do: :ok
 
   defp default_topics, do: [[:state_machine]]
 

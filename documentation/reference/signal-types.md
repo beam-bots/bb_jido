@@ -16,7 +16,10 @@ agent via `Jido.AgentServer.cast/2`.
 
 ### `bb.state.transition`
 
-Robot state-machine transition.
+Robot state-machine transition. The plugin routes this type to
+`BB.Jido.Action.UpdateSafetyState`, which caches safety transitions
+(`to` in `:armed`, `:disarmed`, `:disarming`, `:error`) at
+`agent.state.robot.safety_state`.
 
 | Field | Value |
 |---|---|
@@ -28,7 +31,9 @@ Robot state-machine transition.
 
 ### `bb.safety.error`
 
-Safety hardware error.
+Safety hardware error. The plugin routes this type to
+`BB.Jido.Action.RecordSafetyError`, which stores the payload at
+`agent.state.robot.last_safety_error`.
 
 | Field | Value |
 |---|---|
@@ -57,7 +62,7 @@ publisher's full source path joined by `.` — so a publish on
 These signal types are intended for *application code* to send into the
 agent. The plugin's `signal_routes:` dispatches them to actions.
 
-### `bb.command.execute` → `BB.Jido.Action.Command`
+### `bb.command.execute` -> `BB.Jido.Action.Command`
 
 Execute a robot command.
 
@@ -75,7 +80,7 @@ Optional:
 | `:goal` | `map()` | `%{}` |
 | `:timeout` | `pos_integer()` (ms) | `30_000` |
 
-### `bb.reactor.run` → `BB.Jido.Action.Reactor`
+### `bb.reactor.run` -> `BB.Jido.Action.Reactor`
 
 Run a `bb_reactor` workflow.
 
@@ -92,7 +97,7 @@ Optional:
 |---|---|---|
 | `:inputs` | `map()` | `%{}` |
 
-### `bb.state.wait` → `BB.Jido.Action.WaitForState`
+### `bb.state.wait` -> `BB.Jido.Action.WaitForState`
 
 Block the agent until the robot reaches a target state.
 

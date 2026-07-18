@@ -52,7 +52,7 @@ defmodule BB.Jido.Action.ReactorTest do
   end
 
   test "runs a reactor and surfaces the result" do
-    assert {:ok, %{robot: TestRobot, reactor: SuccessReactor, result: result}} =
+    assert {:ok, %{reactor: SuccessReactor, result: result}} =
              ReactorAction.run(
                %{robot: TestRobot, reactor: SuccessReactor, inputs: %{value: :ok_value}},
                %{}
