@@ -66,6 +66,7 @@ The `PubSubBridge` maps `BB.PubSub` events to a stable signal namespace:
 
 - `bb.state.transition` — `[:state_machine]`, `%BB.StateMachine.Transition{}`
 - `bb.safety.error` — `[:safety, :error]`, `%BB.Safety.HardwareError{}`
+- `bb.parameter.changed` — `[:param | path]`, `%BB.Parameter.Changed{}`
 - `bb.pubsub.<dotted.path>` — anything else
 
 Source URI is `/bb/<robot module>`; payload, path, and robot live under
@@ -77,7 +78,10 @@ opt into higher-volume topics via the plugin's `:topics` (and `:message_types`
 
 Actions return a consistent tagged-error set: `{:error, :safety_disarmed}`,
 `{:error, {:command_failed, reason}}`, `{:error, {:reactor_failed, errors}}`,
-`{:error, {:reactor_halted, reason}}`, `{:error, {:safety_not_armed, state}}`.
+`{:error, {:reactor_halted, reason}}`, `{:error, :timeout}`,
+`{:error, {:subscribe_failed, reason}}`, `{:error, {:safety_not_armed, state}}`,
+`{:error, :robot_not_specified}`. See
+`documentation/reference/error-taxonomy.md` for when each fires.
 
 ### Reactor context
 
@@ -93,8 +97,8 @@ which caches `:safety_state` in the plugin's state slice.
 
 ## Test Structure
 
-ExUnit + Mimic. Tests mirror `lib/` under `test/bb/jido/` (one file per
-action/module) plus `test/mix/tasks/` for the igniter installers.
+ExUnit. Tests live under `test/bb/jido/`, mirroring `lib/`, plus
+`test/mix/tasks/` for the igniter installers.
 `test/support/test_robot.ex` provides `BB.Jido.TestRobot` (simulation mode) and
 `BB.Jido.TestCommands.{Succeed,Fail,...}` for exercising the command/reactor
 actions without hardware.

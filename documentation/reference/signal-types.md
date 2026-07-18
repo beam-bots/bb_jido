@@ -43,6 +43,19 @@ Safety hardware error. The plugin routes this type to
 | `:data.path` | `[:safety, :error]` |
 | `:data.message` | `%BB.Message{payload: %BB.Safety.HardwareError{path: path, error: error}}` |
 
+### `bb.parameter.changed`
+
+Robot parameter update. Published by BB on `[:param | path]` topics —
+bridge one with `:topics` to receive these.
+
+| Field | Value |
+|---|---|
+| `:type` | `"bb.parameter.changed"` |
+| `:source` | `"/bb/<robot module>"` |
+| `:data.robot` | robot module |
+| `:data.path` | `[:param \| parameter_path]` |
+| `:data.message` | `%BB.Message{payload: %BB.Parameter.Changed{path: path, old_value: old, new_value: new, source: source}}` |
+
 ### `bb.pubsub.<dotted source path>`
 
 Generic envelope for any other PubSub event. The path component is the
