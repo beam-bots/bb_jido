@@ -33,6 +33,11 @@ defmodule BB.Jido.Action.WaitForState do
   use Jido.Action,
     name: "bb_wait_for_state",
     description: "Wait for a Beam Bots robot to enter a target state",
+    category: "robotics",
+    tags: ["beam-bots", "robot", "observation"],
+    output_schema: [
+      state: [type: :atom, doc: "The state that was reached"]
+    ],
     schema: [
       robot: [type: :atom, required: true, doc: "Robot module"],
       target: [type: :atom, required: true, doc: "Desired robot state"],

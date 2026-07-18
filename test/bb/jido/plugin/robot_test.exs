@@ -44,6 +44,37 @@ defmodule BB.Jido.Plugin.RobotTest do
     end
   end
 
+  describe "config_schema" do
+    test "applies defaults and accepts a minimal config" do
+      assert {:ok, config} = Zoi.parse(Robot.config_schema(), %{robot: SomeRobot})
+
+      assert config.robot == SomeRobot
+      assert config.topics == [[:state_machine]]
+      assert config.message_types == []
+      assert config.gated_actions == []
+      refute Map.has_key?(config, :throttle_ms)
+    end
+
+    test "rejects a config without :robot" do
+      assert {:error, _errors} = Zoi.parse(Robot.config_schema(), %{})
+    end
+
+    test "rejects a non-positive throttle" do
+      assert {:error, _errors} =
+               Zoi.parse(Robot.config_schema(), %{robot: SomeRobot, throttle_ms: 0})
+    end
+  end
+
+  describe "manifest metadata" do
+    test "declares description, category, and capabilities" do
+      manifest = Robot.manifest()
+
+      assert manifest.description =~ "Beam Bots"
+      assert manifest.category == "robotics"
+      assert :robot_control in manifest.capabilities
+    end
+  end
+
   describe "child_spec/1" do
     test "returns a PubSubBridge child spec parameterised by robot" do
       spec = Robot.child_spec(%{robot: SomeRobot})

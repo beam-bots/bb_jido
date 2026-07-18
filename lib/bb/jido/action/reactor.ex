@@ -32,10 +32,16 @@ defmodule BB.Jido.Action.Reactor do
   use Jido.Action,
     name: "bb_reactor",
     description: "Execute a Beam Bots reactor workflow",
+    category: "robotics",
+    tags: ["beam-bots", "robot", "workflow"],
     schema: [
       robot: [type: :atom, required: true, doc: "Robot module"],
       reactor: [type: :atom, required: true, doc: "Reactor module"],
       inputs: [type: :map, default: %{}, doc: "Reactor inputs"]
+    ],
+    output_schema: [
+      reactor: [type: :atom, doc: "The reactor that ran"],
+      result: [type: :any, doc: "The reactor's return value"]
     ]
 
   alias BB.Jido.Telemetry

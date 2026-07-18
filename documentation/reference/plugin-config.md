@@ -18,12 +18,24 @@ use Jido.Agent,
 
 ### Config
 
+Config is validated against the plugin's `config_schema` when the agent
+is defined — a missing `:robot` or mistyped option raises at compile
+time rather than surfacing later at runtime.
+
 | Key | Type | Required | Default | Description |
 |---|---|---|---|---|
 | `:robot` | `module()` | yes | — | The Beam Bots robot module |
 | `:topics` | `[[atom()]]` | no | `[[:state_machine]]` | PubSub paths the bridge subscribes to |
 | `:message_types` | `[module()]` | no | `[]` | Payload modules to filter on (`[]` = no filter) |
 | `:throttle_ms` | `pos_integer()` | no | `nil` | Minimum interval between same-type signals |
+| `:gated_actions` | `[module()]` | no | `[]` | Actions refused before execution unless `BB.Safety.state/1` is `:armed` |
+
+With `gated_actions: [BB.Jido.Action.Command, BB.Jido.Action.Reactor]`,
+routed signals resolving to those actions fail closed with
+`{:error, {:safety_not_armed, state}}` via the plugin's
+`prepare_action/3` hook. The gate covers signal-routed execution only —
+direct `run/2` calls bypass it, so keep `BB.Jido.Action.SafetyAware` on
+actions that must be guarded everywhere.
 
 ### State
 

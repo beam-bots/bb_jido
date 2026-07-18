@@ -20,7 +20,9 @@ defmodule BB.Jido.Signal do
   - `bb.pubsub.<path>` — generic envelope for any other PubSub message, where
     `<path>` is the dotted source path (e.g. `bb.pubsub.sensor.joint_state`).
 
-  Source follows the `/bb/<robot_module>` convention for traceability.
+  Source follows the `/bb/<robot_module>` convention for traceability, and
+  the CloudEvents `subject` attribute carries the robot module name so
+  handlers can identify the robot without unpacking `data`.
   """
 
   alias BB.Message
@@ -36,14 +38,17 @@ defmodule BB.Jido.Signal do
   @spec from_pubsub(module() | nil, [atom()], Message.t()) :: Jido.Signal.t()
   def from_pubsub(robot, source_path, %Message{} = message)
       when is_list(source_path) do
+    resolved_robot = robot || message.robot
+
     Jido.Signal.new!(
       type_for(source_path, message.payload),
       %{
-        robot: robot || message.robot,
+        robot: resolved_robot,
         path: source_path,
         message: message
       },
-      source: source(robot || message.robot)
+      source: source(resolved_robot),
+      subject: subject(resolved_robot)
     )
   end
 
@@ -68,4 +73,12 @@ defmodule BB.Jido.Signal do
   @spec source(module() | nil) :: String.t()
   def source(nil), do: "/bb"
   def source(robot) when is_atom(robot), do: "/bb/" <> inspect(robot)
+
+  @doc """
+  Returns the CloudEvents `subject` for a robot module — the robot's
+  module name, or `nil` when the robot is unknown.
+  """
+  @spec subject(module() | nil) :: String.t() | nil
+  def subject(nil), do: nil
+  def subject(robot) when is_atom(robot), do: inspect(robot)
 end

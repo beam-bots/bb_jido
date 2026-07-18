@@ -25,6 +25,8 @@ defmodule BB.Jido.Action.UpdateSafetyState do
   use Jido.Action,
     name: "bb_update_safety_state",
     description: "Cache the robot safety state from a bb.state.transition signal",
+    category: "robotics",
+    tags: ["beam-bots", "robot", "observation"],
     schema: [
       message: [type: :any, doc: "Bridged %BB.Message{} carrying the transition"]
     ]

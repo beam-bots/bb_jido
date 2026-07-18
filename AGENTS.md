@@ -31,7 +31,7 @@ Jido Agent  (observes via BB.PubSub→signals, routes signals→actions, emits d
 
 | Module | Purpose |
 |---|---|
-| `BB.Jido.Plugin.Robot` (`plugin/robot.ex`) | Jido v2 plugin attached to an agent — adds robot state, the standard actions, default `bb.*` signal routes, and a supervised `PubSubBridge`. Config: `:robot` (required), `:topics` (default `[[:state_machine]]`), `:message_types`, `:throttle_ms`. |
+| `BB.Jido.Plugin.Robot` (`plugin/robot.ex`) | Jido v2 plugin attached to an agent — adds robot state, the standard actions, default `bb.*` signal routes, and a supervised `PubSubBridge`. Config (Zoi-validated): `:robot` (required), `:topics` (default `[[:state_machine]]`), `:message_types`, `:throttle_ms`, `:gated_actions` (fail-closed armed-only gate via `prepare_action/3`). |
 | `BB.Jido.Action.Command` (`action/command.ex`) | Run a BB command — `apply(robot, command, [goal])` then `BB.Command.await/2`. |
 | `BB.Jido.Action.Reactor` (`action/reactor.ex`) | Run a `bb_reactor` workflow with the robot bound into `context.private.bb_robot`. |
 | `BB.Jido.Action.WaitForState` (`action/wait_for_state.ex`) | Wait for the robot state machine to reach a target state. |

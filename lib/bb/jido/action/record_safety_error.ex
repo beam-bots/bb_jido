@@ -22,6 +22,8 @@ defmodule BB.Jido.Action.RecordSafetyError do
   use Jido.Action,
     name: "bb_record_safety_error",
     description: "Record a bb.safety.error hardware error in agent state",
+    category: "robotics",
+    tags: ["beam-bots", "robot", "observation"],
     schema: [
       message: [type: :any, doc: "Bridged %BB.Message{} carrying the error"]
     ]

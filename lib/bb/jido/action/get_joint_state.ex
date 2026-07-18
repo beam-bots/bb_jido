@@ -22,8 +22,14 @@ defmodule BB.Jido.Action.GetJointState do
   use Jido.Action,
     name: "bb_get_joint_state",
     description: "Read current joint positions and velocities",
+    category: "robotics",
+    tags: ["beam-bots", "robot", "observation"],
     schema: [
       robot: [type: :atom, required: true, doc: "Robot module"]
+    ],
+    output_schema: [
+      positions: [type: :map, doc: "Joint positions in radians, keyed by joint name"],
+      velocities: [type: :map, doc: "Joint velocities in rad/s, keyed by joint name"]
     ]
 
   alias BB.Robot.Runtime

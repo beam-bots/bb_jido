@@ -34,6 +34,8 @@ defmodule BB.Jido.Action.Command do
   use Jido.Action,
     name: "bb_command",
     description: "Execute a Beam Bots command",
+    category: "robotics",
+    tags: ["beam-bots", "robot", "command"],
     schema: [
       robot: [type: :atom, required: true, doc: "Robot module"],
       command: [type: :atom, required: true, doc: "Command name"],
@@ -43,6 +45,11 @@ defmodule BB.Jido.Action.Command do
         default: 30_000,
         doc: "Command timeout in milliseconds"
       ]
+    ],
+    output_schema: [
+      command: [type: :atom, doc: "The command that ran"],
+      goal: [type: :map, doc: "The goal it was given"],
+      outcome: [type: :any, doc: "The command's result value"]
     ]
 
   alias BB.Jido.Telemetry
