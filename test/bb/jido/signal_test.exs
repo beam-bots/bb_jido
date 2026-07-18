@@ -7,6 +7,7 @@ defmodule BB.Jido.SignalTest do
 
   alias BB.Jido.Signal, as: SignalMap
   alias BB.Message
+  alias BB.Parameter.Changed
   alias BB.Safety.HardwareError
   alias BB.StateMachine.Transition
 
@@ -43,6 +44,16 @@ defmodule BB.Jido.SignalTest do
       assert signal.data.message.payload == %HardwareError{path: [:joint1], error: :oops}
     end
 
+    test "maps parameter changes to bb.parameter.changed" do
+      payload = %Changed{path: [:controller, :gain], old_value: 1.0, new_value: 2.0}
+      msg = message(payload)
+
+      signal = SignalMap.from_pubsub(SomeRobot, [:param, :controller, :gain], msg)
+
+      assert signal.type == "bb.parameter.changed"
+      assert signal.data.message.payload == payload
+    end
+
     test "maps unknown payloads to bb.pubsub.<path>" do
       payload = %{__struct__: SomeStruct, foo: 1}
       msg = message(payload)
@@ -69,6 +80,9 @@ defmodule BB.Jido.SignalTest do
 
       assert SignalMap.type_for([:safety, :error], %HardwareError{path: [], error: :x}) ==
                "bb.safety.error"
+
+      assert SignalMap.type_for([:param, :gain], %Changed{path: [:gain]}) ==
+               "bb.parameter.changed"
     end
 
     test "defaults to bb.pubsub.<dotted path>" do

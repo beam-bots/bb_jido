@@ -57,6 +57,7 @@ defmodule BB.Jido.Signal do
   @spec type_for([atom()], struct() | nil) :: String.t()
   def type_for(_path, %BB.StateMachine.Transition{}), do: "bb.state.transition"
   def type_for(_path, %BB.Safety.HardwareError{}), do: "bb.safety.error"
+  def type_for(_path, %BB.Parameter.Changed{}), do: "bb.parameter.changed"
 
   def type_for(path, _payload) do
     "bb.pubsub." <> Enum.map_join(path, ".", &Atom.to_string/1)

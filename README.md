@@ -111,6 +111,7 @@ naming scheme:
 |---|---|
 | `bb.state.transition` | `[:state_machine]` topic, `%BB.StateMachine.Transition{}` payloads |
 | `bb.safety.error` | `[:safety, :error]` topic, `%BB.Safety.HardwareError{}` payloads |
+| `bb.parameter.changed` | `[:param \| path]` topics, `%BB.Parameter.Changed{}` payloads |
 | `bb.pubsub.<path>` | Anything else — dotted source path (e.g. `bb.pubsub.sensor.joint_state`) |
 
 The source URI is `/bb/<robot module>` for traceability. Payload, path, and
@@ -138,8 +139,16 @@ Actions return a consistent tagged-error set:
 - `{:error, {:command_failed, reason}}` — any other command failure
 - `{:error, {:reactor_failed, errors}}` — reactor returned errors
 - `{:error, {:reactor_halted, reason}}` — reactor was halted mid-flight
+- `{:error, :timeout}` — `WaitForState` ran out of time
+- `{:error, {:subscribe_failed, reason}}` — `WaitForState` couldn't
+  subscribe to the state topic
 - `{:error, {:safety_not_armed, state}}` — `BB.Jido.Action.SafetyAware`
   guard tripped
+- `{:error, :robot_not_specified}` — `SafetyAware` found no robot in
+  params or context
+
+See the [error taxonomy reference](documentation/reference/error-taxonomy.md)
+for the full matching guide.
 
 ## Documentation
 
