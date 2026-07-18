@@ -8,14 +8,24 @@ defmodule BB.Jido.Action.WaitForState do
 
   Subscribes to the `[:state_machine]` PubSub topic and blocks until the
   robot reports a transition into `:target`, or returns immediately if the
-  robot is already in that state.
+  robot is already in that state. The subscription is established before
+  the current state is checked, so a transition landing between the two
+  can't be missed.
+
+  The target may be either an operational state (`:idle`, `:executing`,
+  or your robot's custom states, checked via `BB.Robot.Runtime.state/1`)
+  or the safety state `:armed` (checked via `BB.Safety.state/1` —
+  `BB.Robot.Runtime.state/1` reports the operational state while armed,
+  never `:armed` itself). The remaining safety states (`:disarmed`,
+  `:disarming`, `:error`) are reported by both.
 
   ## Schema
 
   - `:robot` — the robot module (required).
   - `:target` — the desired robot state atom (required, e.g. `:idle`,
     `:armed`).
-  - `:timeout` — millisecond timeout (default `30_000`).
+  - `:timeout` — millisecond timeout (default `30_000`). This is a total
+    deadline: unrelated transitions arriving while waiting don't extend it.
 
   ## Returns
 
@@ -39,7 +49,7 @@ defmodule BB.Jido.Action.WaitForState do
       timeout: [
         type: :pos_integer,
         default: 30_000,
-        doc: "Wait timeout in milliseconds"
+        doc: "Total wait deadline in milliseconds"
       ]
     ]
 
@@ -51,22 +61,13 @@ defmodule BB.Jido.Action.WaitForState do
   def run(%{robot: robot, target: target} = params, _context) do
     timeout = Map.get(params, :timeout, 30_000)
 
-    case Runtime.state(robot) do
-      ^target ->
-        {:ok, %{state: target}}
-
-      _other ->
-        wait_for_transition(robot, target, timeout)
-    end
-  end
-
-  defp wait_for_transition(robot, target, timeout) do
     case BB.PubSub.subscribe(robot, [:state_machine], message_types: [Transition]) do
       {:ok, _pid} ->
         try do
-          receive_transition(target, timeout)
+          await_target(robot, target, timeout)
         after
           BB.PubSub.unsubscribe(robot, [:state_machine])
+          drain_transitions()
         end
 
       {:error, reason} ->
@@ -74,16 +75,46 @@ defmodule BB.Jido.Action.WaitForState do
     end
   end
 
-  defp receive_transition(target, timeout) do
-    receive do
-      {:bb, [:state_machine], %Message{payload: %Transition{to: ^target}}} ->
-        {:ok, %{state: target}}
+  defp await_target(robot, target, timeout) do
+    if in_state?(robot, target) do
+      {:ok, %{state: target}}
+    else
+      deadline = System.monotonic_time(:millisecond) + timeout
+      receive_transition(target, deadline)
+    end
+  end
 
-      {:bb, [:state_machine], %Message{payload: %Transition{}}} ->
-        receive_transition(target, timeout)
+  # Runtime.state/1 reports the operational state while armed, so :armed
+  # itself is only visible through the safety controller.
+  defp in_state?(robot, :armed), do: BB.Safety.state(robot) == :armed
+  defp in_state?(robot, target), do: Runtime.state(robot) == target
+
+  defp receive_transition(target, deadline) do
+    remaining = deadline - System.monotonic_time(:millisecond)
+
+    if remaining <= 0 do
+      {:error, :timeout}
+    else
+      receive do
+        {:bb, [:state_machine], %Message{payload: %Transition{to: ^target}}} ->
+          {:ok, %{state: target}}
+
+        {:bb, [:state_machine], %Message{payload: %Transition{}}} ->
+          receive_transition(target, deadline)
+      after
+        remaining ->
+          {:error, :timeout}
+      end
+    end
+  end
+
+  # Transitions delivered between the last receive and the unsubscribe
+  # would otherwise be left in the caller's mailbox.
+  defp drain_transitions do
+    receive do
+      {:bb, [:state_machine], %Message{}} -> drain_transitions()
     after
-      timeout ->
-        {:error, :timeout}
+      0 -> :ok
     end
   end
 end
