@@ -81,10 +81,13 @@ transition actually happens, and only for the transitions you care about.
 
 ## Pre-cached state on the plugin
 
-`BB.Jido.Plugin.Robot` keeps a `safety_state` field in its plugin state
-that's updated whenever a transition signal arrives. Read it from another
-action via `context.agent.state.robot.safety_state` to skip a Runtime
-lookup. This is a convenience cache — `BB.Robot.Runtime.state/1` is also
+`BB.Jido.Plugin.Robot` keeps a `safety_state` field in its plugin state.
+The plugin routes `bb.state.transition` signals to
+`BB.Jido.Action.UpdateSafetyState`, which caches safety transitions
+(`:armed`, `:disarmed`, `:disarming`, `:error`) there; operational
+transitions (`:idle`, `:executing`, ...) don't touch it. Read it from
+another action via `context.agent.state.robot.safety_state` to skip a
+Runtime lookup. This is a convenience cache — `BB.Safety.state/1` is also
 cheap (ETS), so use whichever reads better in your code.
 
 ## See also

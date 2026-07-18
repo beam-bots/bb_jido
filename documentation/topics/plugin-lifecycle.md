@@ -111,12 +111,15 @@ casts. The agent's router takes it from there.
 When the bridge casts a signal to the agent:
 
 1. Each plugin's `handle_signal/2` pre-routing hook fires in declaration
-   order. `BB.Jido.Plugin.Robot.handle_signal/2` watches for
-   `bb.state.transition` and updates its cached `safety_state` — that's
-   why the cache stays current without a separate subscriber.
+   order (`BB.Jido.Plugin.Robot` doesn't implement one).
 2. The signal router matches the type against the plugin's
-   `signal_routes:` and any other plugin's routes.
-3. The matched action's `run/2` is invoked.
+   `signal_routes:` and any other plugin's routes. The robot plugin routes
+   `bb.state.transition` to `BB.Jido.Action.UpdateSafetyState` and
+   `bb.safety.error` to `BB.Jido.Action.RecordSafetyError` — that's how
+   the cached `safety_state` and `last_safety_error` stay current.
+3. The matched action's `run/2` is invoked. Its result map is merged into
+   agent state, and any `Jido.Agent.StateOp` effects (how the caching
+   actions write the plugin's state slice) are applied.
 4. Any returned directives (e.g. `Emit`) are dispatched.
 
 ## What this means in practice

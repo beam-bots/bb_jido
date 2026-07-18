@@ -12,6 +12,7 @@ defmodule BB.Jido.Plugin.RobotTest do
       assert {:ok, state} = Robot.mount(:agent_placeholder, %{robot: SomeRobot})
       assert state.robot == SomeRobot
       assert state.safety_state == :unknown
+      assert state.last_safety_error == nil
       assert state.last_joint_state == %{}
     end
 
@@ -27,6 +28,8 @@ defmodule BB.Jido.Plugin.RobotTest do
       assert {"command.execute", BB.Jido.Action.Command} in routes
       assert {"reactor.run", BB.Jido.Action.Reactor} in routes
       assert {"state.wait", BB.Jido.Action.WaitForState} in routes
+      assert {"state.transition", BB.Jido.Action.UpdateSafetyState} in routes
+      assert {"safety.error", BB.Jido.Action.RecordSafetyError} in routes
     end
 
     test "advertises the standard robot actions" do
@@ -36,6 +39,8 @@ defmodule BB.Jido.Plugin.RobotTest do
       assert BB.Jido.Action.Reactor in actions
       assert BB.Jido.Action.WaitForState in actions
       assert BB.Jido.Action.GetJointState in actions
+      assert BB.Jido.Action.UpdateSafetyState in actions
+      assert BB.Jido.Action.RecordSafetyError in actions
     end
   end
 

@@ -20,11 +20,15 @@ defmodule BB.Jido.Action.Command do
 
   ## Returns
 
-  - `{:ok, %{command: ..., goal: ..., outcome: ..., robot: ...}}` on success.
+  - `{:ok, %{command: ..., goal: ..., outcome: ...}}` on success.
   - `{:error, :safety_disarmed}` if the command exited because the robot was
     disarmed.
   - `{:error, {:command_failed, reason}}` for any other command failure or
     process termination.
+
+  When routed through an agent, the success map is merged into agent state
+  by Jido's default strategy — result keys deliberately avoid the plugin's
+  `:robot` state key.
   """
 
   use Jido.Action,
@@ -54,7 +58,7 @@ defmodule BB.Jido.Action.Command do
       fn ->
         case apply(robot, command, [goal]) do
           {:ok, pid} ->
-            await_command(pid, robot, command, goal, timeout)
+            await_command(pid, command, goal, timeout)
 
           {:error, reason} ->
             {:error, {:command_failed, reason}}
@@ -63,13 +67,13 @@ defmodule BB.Jido.Action.Command do
     )
   end
 
-  defp await_command(pid, robot, command, goal, timeout) do
+  defp await_command(pid, command, goal, timeout) do
     case BB.Command.await(pid, timeout) do
       {:ok, outcome} ->
-        {:ok, build_result(robot, command, goal, outcome)}
+        {:ok, build_result(command, goal, outcome)}
 
       {:ok, outcome, _opts} ->
-        {:ok, build_result(robot, command, goal, outcome)}
+        {:ok, build_result(command, goal, outcome)}
 
       {:error, :disarmed} ->
         {:error, :safety_disarmed}
@@ -79,9 +83,8 @@ defmodule BB.Jido.Action.Command do
     end
   end
 
-  defp build_result(robot, command, goal, outcome) do
+  defp build_result(command, goal, outcome) do
     %{
-      robot: robot,
       command: command,
       goal: goal,
       outcome: outcome

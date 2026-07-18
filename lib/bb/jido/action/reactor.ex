@@ -23,6 +23,10 @@ defmodule BB.Jido.Action.Reactor do
   - `{:error, {:reactor_failed, errors}}` if the reactor returned errors.
   - `{:error, {:reactor_halted, halted}}` if the reactor halted (e.g. due to
     a safety event); `halted` is the halted reactor struct.
+
+  When routed through an agent, the success map is merged into agent state
+  by Jido's default strategy — result keys deliberately avoid the plugin's
+  `:robot` state key.
   """
 
   use Jido.Action,
@@ -47,10 +51,10 @@ defmodule BB.Jido.Action.Reactor do
       fn ->
         case Reactor.run(reactor, inputs, context) do
           {:ok, result} ->
-            {:ok, %{robot: robot, reactor: reactor, result: result}}
+            {:ok, %{reactor: reactor, result: result}}
 
           {:ok, result, _reactor_struct} ->
-            {:ok, %{robot: robot, reactor: reactor, result: result}}
+            {:ok, %{reactor: reactor, result: result}}
 
           {:halted, halted} ->
             {:error, {:reactor_halted, halted}}

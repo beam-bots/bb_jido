@@ -37,6 +37,8 @@ Jido Agent  (observes via BB.PubSub→signals, routes signals→actions, emits d
 | `BB.Jido.Action.WaitForState` (`action/wait_for_state.ex`) | Wait for the robot state machine to reach a target state. |
 | `BB.Jido.Action.GetJointState` (`action/get_joint_state.ex`) | Read current joint positions/velocities. |
 | `BB.Jido.Action.SafetyAware` (`action/safety_aware.ex`) | Mixin aborting an action with `{:safety_not_armed, state}` unless armed. |
+| `BB.Jido.Action.UpdateSafetyState` (`action/update_safety_state.ex`) | Routed from `bb.state.transition`; caches safety transitions at `agent.state.robot.safety_state` via a `StateOp`. |
+| `BB.Jido.Action.RecordSafetyError` (`action/record_safety_error.ex`) | Routed from `bb.safety.error`; records the last `%BB.Safety.HardwareError{}` at `agent.state.robot.last_safety_error`. |
 | `BB.Jido.PubSubBridge` (`pub_sub_bridge.ex`) | GenServer forwarding `{:bb, path, %BB.Message{}}` into the agent as `Jido.Signal`s. |
 | `BB.Jido.Signal` (`signal.ex`) | Canonical `BB.Message` → `Jido.Signal` mapping (CloudEvents `bb.*` namespace). |
 | `BB.Jido.Telemetry` (`telemetry.ex`) | Telemetry spans for actions + per-signal counter. |
@@ -86,7 +88,8 @@ struct.
 ### Safety
 
 Gate actions that move the robot with `BB.Jido.Action.SafetyAware`; the plugin
-caches `:safety_state` from `bb.state.transition` signals.
+routes `bb.state.transition` signals to `BB.Jido.Action.UpdateSafetyState`,
+which caches `:safety_state` in the plugin's state slice.
 
 ## Test Structure
 
