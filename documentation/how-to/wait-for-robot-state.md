@@ -30,12 +30,19 @@ Return shapes:
 
 | Outcome | Return |
 |---|---|
-| Robot already in `target` | `{:ok, %{robot: ..., state: target}}` |
-| Transitions into `target` within `timeout` | `{:ok, %{robot: ..., state: target}}` |
+| Robot already in `target` | `{:ok, %{state: target}}` |
+| Transitions into `target` within `timeout` | `{:ok, %{state: target}}` |
 | `timeout` elapses first | `{:error, :timeout}` |
 
-The action subscribes to `[:state_machine]` for the duration of the wait
-and unsubscribes when it returns.
+The `timeout` is a total deadline — unrelated transitions arriving while
+waiting don't extend it. The target may be an operational state (`:idle`,
+`:executing`, custom states) or the safety state `:armed`; the already-in-
+state check consults `BB.Safety.state/1` for `:armed` and
+`BB.Robot.Runtime.state/1` otherwise.
+
+The action subscribes to `[:state_machine]` before checking the current
+state (so no transition can slip between check and subscription) and
+unsubscribes when it returns.
 
 > **Caveat:** this blocks the *agent process* while it waits. If your
 > agent also needs to react to other signals during the wait, that
