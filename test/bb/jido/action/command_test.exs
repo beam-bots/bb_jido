@@ -36,13 +36,29 @@ defmodule BB.Jido.Action.CommandTest do
              )
   end
 
-  test "returns :safety_disarmed when the command is denied for non-armed robots" do
+  test "returns :safety_disarmed when the command is denied for disarmed robots" do
     {:ok, cmd} = TestRobot.disarm(%{})
     {:ok, :disarmed, _} = BB.Command.await(cmd)
 
-    assert {:error, {:command_failed, _reason}} =
+    assert {:error, :safety_disarmed} =
              Command.run(
                %{robot: TestRobot, command: :test_succeed, goal: %{}},
+               %{}
+             )
+  end
+
+  test "await timeouts are wrapped exactly once" do
+    assert {:error, {:command_failed, :timeout}} =
+             Command.run(
+               %{robot: TestRobot, command: :test_hang, goal: %{}, timeout: 100},
+               %{}
+             )
+  end
+
+  test "non-disarm state rejections stay {:command_failed, reason}" do
+    assert {:error, {:command_failed, %BB.Error.State.NotAllowed{current_state: :idle}}} =
+             Command.run(
+               %{robot: TestRobot, command: :arm, goal: %{}},
                %{}
              )
   end

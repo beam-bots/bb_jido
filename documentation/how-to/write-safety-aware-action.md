@@ -78,7 +78,7 @@ MyRobot.Actions.MoveSomewhere.run(%{pose: pose}, %{robot: MyRobot})
 
 ## Don't double-guard
 
-`BB.Jido.Action.Command` already maps `:disarmed` exits onto
+`BB.Jido.Action.Command` already maps disarmed-state rejections onto
 `{:error, :safety_disarmed}`. The safety guard adds an *early* refusal so
 the command is never even started — useful if starting the command would
 itself have side effects (logging, telemetry, allocating resources).

@@ -56,6 +56,11 @@ defmodule BB.Jido.TestRobot do
       handler(BB.Jido.TestCommands.Fail)
       allowed_states([:idle])
     end
+
+    command :test_hang do
+      handler(BB.Jido.TestCommands.Hang)
+      allowed_states([:idle])
+    end
   end
 end
 
@@ -86,5 +91,16 @@ defmodule BB.Jido.TestCommands.Fail do
 
   @impl BB.Command
   def result(%{result: result}) when result != nil, do: result
+  def result(_state), do: {:error, :no_result}
+end
+
+defmodule BB.Jido.TestCommands.Hang do
+  @moduledoc false
+  use BB.Command
+
+  @impl BB.Command
+  def handle_command(_goal, _context, state), do: {:noreply, state}
+
+  @impl BB.Command
   def result(_state), do: {:error, :no_result}
 end
