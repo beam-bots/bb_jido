@@ -12,7 +12,10 @@ public API.
 ## Signals the bridge emits
 
 These signals are produced by `BB.Jido.PubSubBridge` and cast into the
-agent via `Jido.AgentServer.cast/2`.
+agent via `Jido.AgentServer.cast/2`. Every bridged signal also carries
+the robot module name in the CloudEvents `subject` attribute (e.g.
+`"MyRobot"`), so handlers can identify the robot without unpacking
+`data`.
 
 ### `bb.state.transition`
 

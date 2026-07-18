@@ -23,11 +23,16 @@ defmodule BB.Jido.Plugin.Robot do
     whenever `GetJointState` runs).
   - A supervised `BB.Jido.PubSubBridge` mounted under the agent process that
     forwards BB PubSub events to the agent as Jido signals.
+  - An optional fail-closed safety gate: actions listed in
+    `:gated_actions` are refused before execution unless the robot's
+    safety controller reports `:armed`.
 
   ## Configuration
 
   Plugin config (passed via `{BB.Jido.Plugin.Robot, %{...}}` when attaching
-  to an agent):
+  to an agent) is validated against the plugin's `config_schema` when the
+  agent is defined, so a missing or mistyped option fails fast with a
+  schema error rather than surfacing later at runtime:
 
   - `:robot` — robot module (required).
   - `:topics` — list of `BB.PubSub` paths to bridge (default
@@ -35,17 +40,39 @@ defmodule BB.Jido.Plugin.Robot do
   - `:message_types` — payload modules to filter on at subscribe time
     (default `[]`, meaning no filter).
   - `:throttle_ms` — optional per-signal-type throttle in milliseconds.
+  - `:gated_actions` — list of action modules refused via
+    `prepare_action/3` unless `BB.Safety.state/1` reports `:armed`
+    (default `[]`). See below.
 
   Bridged topics beyond the defaults need matching signal routes on the
   agent (or plugin) — signals without a route are reported as routing
   errors through the agent's error policy.
+
+  ## Safety gating
+
+  With `gated_actions: [BB.Jido.Action.Command, BB.Jido.Action.Reactor]`,
+  any routed signal that resolves to one of those actions is refused with
+  `{:error, {:safety_not_armed, state}}` *before* the action executes,
+  using an authoritative `BB.Safety.state/1` read (fast ETS). This is the
+  plugin-level counterpart to the per-action `BB.Jido.Action.SafetyAware`
+  mixin: the mixin travels with the action module wherever it's used,
+  while the gate is enforced centrally for signal-routed execution on this
+  agent. The gate fails closed and cannot be bypassed by the routed
+  action's own params.
+
+  The gate only sees signal-routed execution — direct `run/2` calls (e.g.
+  reactor steps) bypass it, so keep using `SafetyAware` for actions that
+  must be guarded everywhere.
 
   ## Example
 
       defmodule MyRobot.Agent do
         use Jido.Agent,
           name: "my_robot",
-          plugins: [{BB.Jido.Plugin.Robot, %{robot: MyRobot}}]
+          plugins: [
+            {BB.Jido.Plugin.Robot,
+             %{robot: MyRobot, gated_actions: [BB.Jido.Action.Command]}}
+          ]
       end
   """
 
@@ -54,7 +81,35 @@ defmodule BB.Jido.Plugin.Robot do
   # `command.execute` ends up as `bb.command.execute` after prefixing.
   use Jido.Plugin,
     name: "bb",
+    description: "Beam Bots robot control and observation for Jido agents",
+    category: "robotics",
+    tags: ["beam-bots", "robotics"],
+    vsn: Mix.Project.config()[:version],
+    capabilities: [:robot_control, :robot_observation],
     state_key: :robot,
+    config_schema:
+      Zoi.object(%{
+        robot: Zoi.atom(description: "Beam Bots robot module"),
+        topics:
+          Zoi.list(Zoi.list(Zoi.atom()),
+            description: "BB.PubSub paths to bridge (replaces the default)"
+          )
+          |> Zoi.default([[:state_machine]]),
+        message_types:
+          Zoi.list(Zoi.atom(),
+            description: "Payload modules to filter on at subscribe time ([] = no filter)"
+          )
+          |> Zoi.default([]),
+        throttle_ms:
+          Zoi.integer(description: "Minimum interval between same-type signals, in ms")
+          |> Zoi.min(1)
+          |> Zoi.optional(),
+        gated_actions:
+          Zoi.list(Zoi.atom(),
+            description: "Action modules refused via prepare_action/3 unless the robot is armed"
+          )
+          |> Zoi.default([])
+      }),
     actions: [
       BB.Jido.Action.Command,
       BB.Jido.Action.GetJointState,
@@ -114,6 +169,31 @@ defmodule BB.Jido.Plugin.Robot do
       type: :worker
     }
   end
+
+  @impl Jido.Plugin
+  def prepare_action(_signal, action_arg, %{config: config}) do
+    gated = Map.get(config, :gated_actions, [])
+
+    if gated != [] and Enum.any?(action_modules(action_arg), &(&1 in gated)) do
+      authorize_armed(Map.fetch!(config, :robot))
+    else
+      {:ok, %{}}
+    end
+  end
+
+  defp authorize_armed(robot) do
+    case BB.Safety.state(robot) do
+      :armed -> {:ok, %{}}
+      other -> {:error, {:safety_not_armed, other}}
+    end
+  end
+
+  defp action_modules(actions) when is_list(actions),
+    do: Enum.flat_map(actions, &action_modules/1)
+
+  defp action_modules({module, _params}) when is_atom(module), do: [module]
+  defp action_modules(module) when is_atom(module), do: [module]
+  defp action_modules(_other), do: []
 
   defp default_topics, do: [[:state_machine]]
 

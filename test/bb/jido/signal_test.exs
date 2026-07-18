@@ -30,6 +30,7 @@ defmodule BB.Jido.SignalTest do
 
       assert signal.type == "bb.state.transition"
       assert signal.source == "/bb/SomeRobot"
+      assert signal.subject == "SomeRobot"
       assert signal.data.robot == SomeRobot
       assert signal.data.path == [:state_machine]
       assert signal.data.message == msg
@@ -69,7 +70,18 @@ defmodule BB.Jido.SignalTest do
       signal = SignalMap.from_pubsub(nil, [:state_machine], msg)
 
       assert signal.source == "/bb/OtherRobot"
+      assert signal.subject == "OtherRobot"
       assert signal.data.robot == OtherRobot
+    end
+  end
+
+  describe "subject/1" do
+    test "renders the robot module name" do
+      assert SignalMap.subject(MyRobot) == "MyRobot"
+    end
+
+    test "is nil for a nil robot" do
+      assert SignalMap.subject(nil) == nil
     end
   end
 
