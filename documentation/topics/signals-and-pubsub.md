@@ -93,13 +93,13 @@ discipline.
 
 The bridge can't peek inside a payload — that would couple it to every
 payload type in BB. If you need content-based filtering ("only IMU
-readings on link 3 with `temperature > 60`"), do it in your action:
+readings from the `:link3` frame"), do it in your action:
 
 ```elixir
-def run(%{message: %BB.Message{payload: payload}} = params, _ctx) do
-  case payload do
-    %BB.Sensor.IMU{frame_id: :link3, temperature: t} when t > 60 ->
-      handle_overheat(params.robot)
+def run(%{message: %BB.Message{} = message} = params, _ctx) do
+  case message do
+    %BB.Message{frame_id: :link3, payload: %BB.Message.Sensor.Imu{} = imu} ->
+      handle_imu(params.robot, imu)
 
     _ ->
       {:ok, %{ignored: true}}

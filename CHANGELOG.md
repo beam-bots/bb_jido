@@ -7,7 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 # Change Log
 
 All notable changes to this project will be documented in this file.
-See [Conventional Commits](Https://conventionalcommits.org) for commit guidelines.
+See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
 <!-- changelog -->
 
@@ -25,7 +25,7 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 
 
-## [v0.1.1](https://github.com/beam-bots/bb_jido/compare/v0.1.1...v0.1.1) (2026-05-19)
+## [v0.1.1](https://github.com/beam-bots/bb_jido/releases/tag/v0.1.1) (2026-05-19)
 
 
 

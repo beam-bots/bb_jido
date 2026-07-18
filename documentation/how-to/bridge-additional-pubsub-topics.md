@@ -29,7 +29,7 @@ defmodule MyRobot.Agent do
          topics: [
            [:state_machine],
            [:safety, :error],
-           [:sensor, :force_torque]
+           [:sensor, :joint_state]
          ]
        }}
     ]
@@ -37,9 +37,9 @@ end
 ```
 
 Each entry is a list of atoms — the same format that
-`BB.PubSub.subscribe/3` accepts. The list is appended on top of the BB
-defaults, not merged, so include `[:state_machine]` explicitly if you
-still want it.
+`BB.PubSub.subscribe/3` accepts. The list *replaces* the default
+(`[[:state_machine]]`) rather than adding to it, so include
+`[:state_machine]` explicitly if you still want it.
 
 ## Restrict by payload type
 
@@ -51,7 +51,7 @@ its descendants. Restrict at the PubSub layer with `:message_types`:
  %{
    robot: MyRobot,
    topics: [[:sensor]],
-   message_types: [BB.Sensor.JointState, BB.Sensor.ForceTorque]
+   message_types: [BB.Message.Sensor.JointState, BB.Message.Sensor.Imu]
  }}
 ```
 
