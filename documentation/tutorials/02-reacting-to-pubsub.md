@@ -175,7 +175,7 @@ plugins: [
    %{
      robot: MyRobot,
      topics: [[:state_machine], [:sensor, :joint_state]],
-     message_types: [BB.StateMachine.Transition, BB.Sensor.JointState]
+     message_types: [BB.StateMachine.Transition, BB.Message.Sensor.JointState]
    }}
 ]
 ```
