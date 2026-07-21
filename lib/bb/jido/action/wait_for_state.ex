@@ -6,11 +6,12 @@ defmodule BB.Jido.Action.WaitForState do
   @moduledoc """
   Jido action that waits for a Beam Bots robot to enter a target state.
 
-  Subscribes to the `[:state_machine]` PubSub topic and blocks until the
-  robot reports a transition into `:target`, or returns immediately if the
-  robot is already in that state. The subscription is established before
-  the current state is checked, so a transition landing between the two
-  can't be missed.
+  Blocks until the robot reports a transition into `:target`, or returns
+  immediately if the robot is already in that state. The `[:state_machine]`
+  subscription is held by a dedicated temporary process (so a caller's own
+  PubSub subscriptions and mailbox are never touched) and is established
+  before the current state is checked, so a transition landing between the
+  two can't be missed.
 
   The target may be either an operational state (`:idle`, `:executing`,
   or your robot's custom states, checked via `BB.Robot.Runtime.state/1`)
@@ -31,6 +32,10 @@ defmodule BB.Jido.Action.WaitForState do
 
   - `{:ok, %{state: target}}` when the state is reached.
   - `{:error, :timeout}` if the timeout elapses first.
+  - `{:error, {:subscribe_failed, reason}}` if the state topic could not
+    be subscribed to.
+  - `{:error, {:wait_failed, reason}}` if the temporary subscriber process
+    exited abnormally.
 
   ## Warning
 
@@ -65,27 +70,73 @@ defmodule BB.Jido.Action.WaitForState do
   @impl Jido.Action
   def run(%{robot: robot, target: target} = params, _context) do
     timeout = Map.get(params, :timeout, 30_000)
+    deadline = System.monotonic_time(:millisecond) + timeout
+    parent = self()
+    ref = make_ref()
 
-    case BB.PubSub.subscribe(robot, [:state_machine], message_types: [Transition]) do
-      {:ok, _pid} ->
-        try do
-          await_target(robot, target, timeout)
-        after
-          BB.PubSub.unsubscribe(robot, [:state_machine])
-          drain_transitions()
+    # The subscription lives in a throwaway process: BB.PubSub registers
+    # (and unregisters) the *calling* process per path, so subscribing
+    # from the caller would silently remove any subscription the caller
+    # already holds on [:state_machine] when the wait cleans up.
+    {waiter, monitor} =
+      spawn_monitor(fn ->
+        case BB.PubSub.subscribe(robot, [:state_machine], message_types: [Transition]) do
+          {:ok, _pid} ->
+            send(parent, {ref, :subscribed})
+            send(parent, {ref, receive_transition(target, deadline)})
+
+          {:error, reason} ->
+            send(parent, {ref, {:error, {:subscribe_failed, reason}}})
+        end
+      end)
+
+    receive do
+      {^ref, :subscribed} ->
+        if in_state?(robot, target) do
+          stop_waiter(waiter, monitor, ref)
+          {:ok, %{state: target}}
+        else
+          await_waiter(ref, waiter, monitor, deadline)
         end
 
-      {:error, reason} ->
-        {:error, {:subscribe_failed, reason}}
+      {^ref, {:error, _reason} = error} ->
+        Process.demonitor(monitor, [:flush])
+        error
+
+      {:DOWN, ^monitor, :process, _pid, reason} ->
+        {:error, {:wait_failed, reason}}
     end
   end
 
-  defp await_target(robot, target, timeout) do
-    if in_state?(robot, target) do
-      {:ok, %{state: target}}
-    else
-      deadline = System.monotonic_time(:millisecond) + timeout
-      receive_transition(target, deadline)
+  defp await_waiter(ref, waiter, monitor, deadline) do
+    remaining = max(deadline - System.monotonic_time(:millisecond), 0)
+
+    receive do
+      {^ref, result} ->
+        Process.demonitor(monitor, [:flush])
+        result
+
+      {:DOWN, ^monitor, :process, _pid, reason} ->
+        {:error, {:wait_failed, reason}}
+    after
+      # The waiter enforces the deadline itself; the slack makes this a
+      # failsafe against a stuck waiter rather than the primary timer.
+      remaining + 100 ->
+        stop_waiter(waiter, monitor, ref)
+        {:error, :timeout}
+    end
+  end
+
+  defp stop_waiter(waiter, monitor, ref) do
+    Process.demonitor(monitor, [:flush])
+    Process.exit(waiter, :kill)
+
+    # A result the waiter sent between our decision and the kill would
+    # otherwise linger in the caller's mailbox.
+    receive do
+      {^ref, _late_result} -> :ok
+    after
+      0 -> :ok
     end
   end
 
@@ -110,16 +161,6 @@ defmodule BB.Jido.Action.WaitForState do
         remaining ->
           {:error, :timeout}
       end
-    end
-  end
-
-  # Transitions delivered between the last receive and the unsubscribe
-  # would otherwise be left in the caller's mailbox.
-  defp drain_transitions do
-    receive do
-      {:bb, [:state_machine], %Message{}} -> drain_transitions()
-    after
-      0 -> :ok
     end
   end
 end

@@ -20,6 +20,12 @@ defmodule BB.Jido.Action.WaitForStateTest do
     {:ok, :armed, _} = BB.Command.await(cmd)
   end
 
+  defp subscriber_pids do
+    TestRobot
+    |> BB.PubSub.subscribers([:state_machine])
+    |> Enum.map(&elem(&1, 0))
+  end
+
   defp publish_transition(to) do
     message = Message.new!(Transition, :state_machine, from: :idle, to: to)
     BB.PubSub.publish(TestRobot, [:state_machine], message)
@@ -75,6 +81,31 @@ defmodule BB.Jido.Action.WaitForStateTest do
 
     assert elapsed >= 300
     assert elapsed < 900
+  end
+
+  test "preserves a caller's existing subscription on the fast path" do
+    {:ok, _} = BB.PubSub.subscribe(TestRobot, [:state_machine])
+    arm!()
+
+    assert {:ok, %{state: :armed}} =
+             WaitForState.run(%{robot: TestRobot, target: :armed, timeout: 1_000}, %{})
+
+    assert self() in subscriber_pids()
+
+    publish_transition(:executing)
+    assert_receive {:bb, [:state_machine], %Message{payload: %Transition{to: :executing}}}, 500
+  end
+
+  test "preserves a caller's existing subscription after a timed-out wait" do
+    {:ok, _} = BB.PubSub.subscribe(TestRobot, [:state_machine])
+
+    assert {:error, :timeout} =
+             WaitForState.run(%{robot: TestRobot, target: :never_reached, timeout: 100}, %{})
+
+    assert self() in subscriber_pids()
+
+    publish_transition(:executing)
+    assert_receive {:bb, [:state_machine], %Message{payload: %Transition{to: :executing}}}, 500
   end
 
   test "leaves no pubsub messages in the caller's mailbox" do
