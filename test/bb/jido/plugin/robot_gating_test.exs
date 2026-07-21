@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2026 James Harton
+# SPDX-FileCopyrightText: 2026 Holden Oullette
 #
 # SPDX-License-Identifier: Apache-2.0
 
