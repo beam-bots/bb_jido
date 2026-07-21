@@ -55,12 +55,13 @@ one — it's not a one-way door.
 
 ## Canonical signal types
 
-The bridge produces three families of signal type:
+The bridge produces four families of signal type:
 
 | When | Type | Why |
 |---|---|---|
 | `%BB.StateMachine.Transition{}` payload | `bb.state.transition` | Specialised — agents almost always want to react to transitions specifically. |
 | `%BB.Safety.HardwareError{}` payload | `bb.safety.error` | Specialised — safety errors deserve their own type. |
+| `%BB.Parameter.Changed{}` payload | `bb.parameter.changed` | Specialised — parameter updates are identifiable regardless of which `[:param \| path]` topic carried them. |
 | Anything else | `bb.pubsub.<dotted source path>` | Generic — preserves the path information but no semantic claim. |
 
 The specialised types are *stable*. Even if a future BB version changes

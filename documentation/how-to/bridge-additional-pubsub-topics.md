@@ -66,6 +66,7 @@ Each forwarded message becomes a `Jido.Signal` with a stable type string:
 |---|---|
 | `BB.StateMachine.Transition` | `bb.state.transition` |
 | `BB.Safety.HardwareError` | `bb.safety.error` |
+| `BB.Parameter.Changed` | `bb.parameter.changed` |
 | Anything else | `bb.pubsub.<dotted source path>` |
 
 So a sensor publishing on `[:sensor, :force_torque]` becomes
