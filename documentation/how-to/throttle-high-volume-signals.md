@@ -55,9 +55,11 @@ ago:
  }}
 ```
 
-A 100Hz joint-state stream becomes a 10Hz signal stream. State-machine
-transitions still pass through immediately because they have a different
-signal type (`bb.state.transition` vs `bb.pubsub.sensor.joint_state`).
+A 100Hz joint-state stream becomes a 10Hz signal stream. The
+safety-critical types `bb.state.transition` and `bb.safety.error` are
+*exempt* from throttling — dropping a `:disarmed` transition inside the
+window would leave the plugin's `safety_state` cache falsely armed, and
+those topics are low-volume anyway.
 
 > **Important:** the throttle drops by *type*, not by content. A latest-
 > value workflow is fine; a "we must see every reading" workflow is not.
