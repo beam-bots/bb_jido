@@ -1,5 +1,6 @@
 <!--
 SPDX-FileCopyrightText: 2026 James Harton
+SPDX-FileCopyrightText: 2026 Holden Oullette
 
 SPDX-License-Identifier: Apache-2.0
 -->
@@ -52,7 +53,12 @@ plugins:
 ```elixir
 def mount(_agent, %{robot: robot}) do
   {:ok,
-   %{robot: robot, safety_state: :unknown, last_joint_state: %{}}}
+   %{
+     robot: robot,
+     safety_state: :unknown,
+     last_safety_error: nil,
+     last_joint_state: %{}
+   }}
 end
 ```
 
