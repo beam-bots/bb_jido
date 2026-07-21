@@ -70,6 +70,43 @@ defmodule BB.Jido.Plugin.RobotGatingTest do
                  gating_context([Command])
                )
     end
+
+    test "rejects a gated action targeting a robot other than the configured one" do
+      arm!()
+
+      assert {:error, {:robot_mismatch, details}} =
+               Robot.prepare_action(
+                 nil,
+                 {Command, %{robot: SomeOtherRobot, command: :test_succeed}},
+                 gating_context([Command])
+               )
+
+      assert details.configured == TestRobot
+      assert details.requested == SomeOtherRobot
+      assert details.action == Command
+    end
+
+    test "rejects a cross-robot target regardless of param key type" do
+      arm!()
+
+      assert {:error, {:robot_mismatch, _details}} =
+               Robot.prepare_action(
+                 nil,
+                 {Command, %{"robot" => SomeOtherRobot}},
+                 gating_context([Command])
+               )
+    end
+
+    test "authorises gated actions whose params omit the robot" do
+      arm!()
+
+      assert {:ok, %{}} =
+               Robot.prepare_action(
+                 nil,
+                 {Command, %{command: :test_succeed}},
+                 gating_context([Command])
+               )
+    end
   end
 
   describe "signal-routed gating through an agent" do

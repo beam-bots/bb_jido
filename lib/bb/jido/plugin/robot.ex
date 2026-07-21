@@ -31,8 +31,8 @@ defmodule BB.Jido.Plugin.Robot do
 
   Plugin config (passed via `{BB.Jido.Plugin.Robot, %{...}}` when attaching
   to an agent) is validated against the plugin's `config_schema` when the
-  agent is defined, so a missing or mistyped option fails fast with a
-  schema error rather than surfacing later at runtime:
+  agent is defined, so a missing, mistyped, or unrecognised option fails
+  fast with a schema error rather than surfacing later at runtime:
 
   - `:robot` — robot module (required).
   - `:topics` — list of `BB.PubSub` paths to bridge (default
@@ -58,7 +58,10 @@ defmodule BB.Jido.Plugin.Robot do
   mixin: the mixin travels with the action module wherever it's used,
   while the gate is enforced centrally for signal-routed execution on this
   agent. The gate fails closed and cannot be bypassed by the routed
-  action's own params.
+  action's own params: a gated action whose params name a robot other
+  than the configured one is rejected with
+  `{:error, {:robot_mismatch, details}}` rather than authorised against
+  the wrong robot's safety state.
 
   The gate only sees signal-routed execution — direct `run/2` calls (e.g.
   reactor steps) bypass it, so keep using `SafetyAware` for actions that
@@ -88,28 +91,33 @@ defmodule BB.Jido.Plugin.Robot do
     capabilities: [:robot_control, :robot_observation],
     state_key: :robot,
     config_schema:
-      Zoi.object(%{
-        robot: Zoi.atom(description: "Beam Bots robot module"),
-        topics:
-          Zoi.list(Zoi.list(Zoi.atom()),
-            description: "BB.PubSub paths to bridge (replaces the default)"
-          )
-          |> Zoi.default([[:state_machine]]),
-        message_types:
-          Zoi.list(Zoi.atom(),
-            description: "Payload modules to filter on at subscribe time ([] = no filter)"
-          )
-          |> Zoi.default([]),
-        throttle_ms:
-          Zoi.integer(description: "Minimum interval between same-type signals, in ms")
-          |> Zoi.min(1)
-          |> Zoi.optional(),
-        gated_actions:
-          Zoi.list(Zoi.atom(),
-            description: "Action modules refused via prepare_action/3 unless the robot is armed"
-          )
-          |> Zoi.default([])
-      }),
+      Zoi.object(
+        %{
+          robot: Zoi.atom(description: "Beam Bots robot module"),
+          topics:
+            Zoi.list(Zoi.list(Zoi.atom()),
+              description: "BB.PubSub paths to bridge (replaces the default)"
+            )
+            |> Zoi.default([[:state_machine]]),
+          message_types:
+            Zoi.list(Zoi.atom(),
+              description: "Payload modules to filter on at subscribe time ([] = no filter)"
+            )
+            |> Zoi.default([]),
+          throttle_ms:
+            Zoi.integer(description: "Minimum interval between same-type signals, in ms")
+            |> Zoi.min(1)
+            |> Zoi.optional(),
+          gated_actions:
+            Zoi.list(Zoi.atom(),
+              description: "Action modules refused via prepare_action/3 unless the robot is armed"
+            )
+            |> Zoi.default([])
+        },
+        # A typo'd key (e.g. `gated_action:`) must be a hard error, not a
+        # silently dropped safety control.
+        unrecognized_keys: :error
+      ),
     actions: [
       BB.Jido.Action.Command,
       BB.Jido.Action.GetJointState,
@@ -174,12 +182,38 @@ defmodule BB.Jido.Plugin.Robot do
   def prepare_action(_signal, action_arg, %{config: config}) do
     gated = Map.get(config, :gated_actions, [])
 
-    if gated != [] and Enum.any?(action_modules(action_arg), &(&1 in gated)) do
-      authorize_armed(Map.fetch!(config, :robot))
-    else
-      {:ok, %{}}
+    case gated_targets(action_arg, gated) do
+      [] -> {:ok, %{}}
+      targets -> authorize_targets(targets, Map.fetch!(config, :robot))
     end
   end
+
+  # The gate authorizes THIS plugin's robot, so a gated action whose params
+  # name a different robot must be rejected outright — authorizing the
+  # configured robot would otherwise approve a command aimed at a robot
+  # whose safety state was never checked.
+  defp authorize_targets(targets, configured_robot) do
+    case Enum.find(targets, &robot_mismatch?(&1, configured_robot)) do
+      {module, params} ->
+        {:error,
+         {:robot_mismatch,
+          %{configured: configured_robot, requested: params_robot(params), action: module}}}
+
+      nil ->
+        authorize_armed(configured_robot)
+    end
+  end
+
+  defp robot_mismatch?({_module, params}, configured_robot) do
+    case params_robot(params) do
+      nil -> false
+      robot -> robot != configured_robot
+    end
+  end
+
+  defp params_robot(%{robot: robot}), do: robot
+  defp params_robot(%{"robot" => robot}), do: robot
+  defp params_robot(_params), do: nil
 
   defp authorize_armed(robot) do
     case BB.Safety.state(robot) do
@@ -188,12 +222,18 @@ defmodule BB.Jido.Plugin.Robot do
     end
   end
 
-  defp action_modules(actions) when is_list(actions),
-    do: Enum.flat_map(actions, &action_modules/1)
+  defp gated_targets(actions, gated) when is_list(actions),
+    do: Enum.flat_map(actions, &gated_targets(&1, gated))
 
-  defp action_modules({module, _params}) when is_atom(module), do: [module]
-  defp action_modules(module) when is_atom(module), do: [module]
-  defp action_modules(_other), do: []
+  defp gated_targets({module, params}, gated) when is_atom(module) do
+    if module in gated, do: [{module, params}], else: []
+  end
+
+  defp gated_targets(module, gated) when is_atom(module) do
+    if module in gated, do: [{module, %{}}], else: []
+  end
+
+  defp gated_targets(_other, _gated), do: []
 
   defp default_topics, do: [[:state_machine]]
 

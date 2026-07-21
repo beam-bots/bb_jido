@@ -59,6 +59,16 @@ defmodule BB.Jido.Plugin.RobotTest do
       assert {:error, _errors} = Zoi.parse(Robot.config_schema(), %{})
     end
 
+    test "rejects unrecognised config keys instead of silently dropping them" do
+      assert {:error, errors} =
+               Zoi.parse(Robot.config_schema(), %{
+                 robot: SomeRobot,
+                 gated_action: [BB.Jido.Action.Command]
+               })
+
+      assert Enum.any?(errors, &(&1.code == :unrecognized_key))
+    end
+
     test "rejects a non-positive throttle" do
       assert {:error, _errors} =
                Zoi.parse(Robot.config_schema(), %{robot: SomeRobot, throttle_ms: 0})

@@ -19,8 +19,9 @@ use Jido.Agent,
 ### Config
 
 Config is validated against the plugin's `config_schema` when the agent
-is defined — a missing `:robot` or mistyped option raises at compile
-time rather than surfacing later at runtime.
+is defined — a missing `:robot`, a mistyped value, or an unrecognised
+key (e.g. a typo'd `gated_action:`) raises at compile time rather than
+surfacing later at runtime.
 
 | Key | Type | Required | Default | Description |
 |---|---|---|---|---|
@@ -33,9 +34,13 @@ time rather than surfacing later at runtime.
 With `gated_actions: [BB.Jido.Action.Command, BB.Jido.Action.Reactor]`,
 routed signals resolving to those actions fail closed with
 `{:error, {:safety_not_armed, state}}` via the plugin's
-`prepare_action/3` hook. The gate covers signal-routed execution only —
-direct `run/2` calls bypass it, so keep `BB.Jido.Action.SafetyAware` on
-actions that must be guarded everywhere.
+`prepare_action/3` hook. The gate authorises the *configured* robot, so
+a gated action whose params name a different robot is rejected with
+`{:error, {:robot_mismatch, %{configured: ..., requested: ..., action: ...}}}`
+rather than authorised against the wrong robot's safety state. The gate
+covers signal-routed execution only — direct `run/2` calls bypass it, so
+keep `BB.Jido.Action.SafetyAware` on actions that must be guarded
+everywhere.
 
 ### State
 
