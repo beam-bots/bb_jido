@@ -76,7 +76,7 @@ defmodule BB.Jido.MixProject do
   defp deps do
     [
       {:bb, bb_dep("~> 0.16")},
-      {:jido, "~> 2.2"},
+      {:jido, "~> 2.3"},
       {:reactor, "~> 1.0"},
       {:zoi, "~> 0.18"},
 

@@ -106,7 +106,7 @@ actions without hardware.
 ## Dependencies
 
 - `bb ~> 0.16` — core framework (`BB.PubSub`, `BB.Command`, state machine, safety)
-- `jido ~> 2.2` — agent framework
+- `jido ~> 2.3` — agent framework (2.3 is required for the plugin `prepare_action/3` hook used by safety gating)
 - `reactor ~> 1.0` — used by `BB.Jido.Action.Reactor` (soft dependency in practice)
 
 Develop against a local `bb` checkout with `BB_VERSION=local` (expects `../bb`).
