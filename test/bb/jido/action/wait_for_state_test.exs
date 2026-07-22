@@ -20,6 +20,14 @@ defmodule BB.Jido.Action.WaitForStateTest do
     {:ok, :armed, _} = BB.Command.await(cmd)
   end
 
+  defp drain_late_results(acc \\ []) do
+    receive do
+      {ref, result} when is_reference(ref) -> drain_late_results([{ref, result} | acc])
+    after
+      0 -> acc
+    end
+  end
+
   defp subscriber_pids do
     TestRobot
     |> BB.PubSub.subscribers([:state_machine])
@@ -126,6 +134,29 @@ defmodule BB.Jido.Action.WaitForStateTest do
 
     publish_transition(:executing)
     assert_receive {:bb, [:state_machine], %Message{payload: %Transition{to: :executing}}}, 500
+  end
+
+  test "fast-path waits never leak late waiter results into the caller mailbox" do
+    arm!()
+
+    pump =
+      spawn(fn ->
+        loop = fn loop ->
+          publish_transition(:armed)
+          loop.(loop)
+        end
+
+        loop.(loop)
+      end)
+
+    for _ <- 1..500 do
+      assert {:ok, %{state: :armed}} =
+               WaitForState.run(%{robot: TestRobot, target: :armed, timeout: 1_000}, %{})
+    end
+
+    Process.exit(pump, :kill)
+
+    assert drain_late_results() == []
   end
 
   test "a killed caller takes the waiter's subscription down with it" do

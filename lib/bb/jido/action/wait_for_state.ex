@@ -134,11 +134,15 @@ defmodule BB.Jido.Action.WaitForState do
   end
 
   defp stop_waiter(waiter, monitor, ref) do
-    Process.demonitor(monitor, [:flush])
     Process.exit(waiter, :kill)
 
-    # A result the waiter sent between our decision and the kill would
-    # otherwise linger in the caller's mailbox.
+    # The waiter's messages are delivered before its DOWN, so once the
+    # DOWN arrives any late result is already in the mailbox and the
+    # flush below cannot race the waiter's final send.
+    receive do
+      {:DOWN, ^monitor, :process, _pid, _reason} -> :ok
+    end
+
     receive do
       {^ref, _late_result} -> :ok
     after
