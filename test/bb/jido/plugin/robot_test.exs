@@ -7,6 +7,7 @@ defmodule BB.Jido.Plugin.RobotTest do
   use ExUnit.Case, async: true
 
   alias BB.Jido.Plugin.Robot
+  alias Jido.Plugin.Instance
 
   describe "mount/2" do
     test "returns initial robot state for valid config" do
@@ -37,7 +38,7 @@ defmodule BB.Jido.Plugin.RobotTest do
       assert Robot.singleton?()
 
       assert_raise ArgumentError, ~r/singleton/, fn ->
-        Jido.Plugin.Instance.new({Robot, [as: :left, robot: BB.Jido.TestRobot]})
+        Instance.new({Robot, [as: :left, robot: BB.Jido.TestRobot]})
       end
     end
 
