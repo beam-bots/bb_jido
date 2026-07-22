@@ -41,8 +41,8 @@ defmodule BB.Jido.Action.Reactor do
       inputs: [type: :map, default: %{}, doc: "Reactor inputs"]
     ],
     output_schema: [
-      reactor: [type: :atom, doc: "The reactor that ran"],
-      result: [type: :any, doc: "The reactor's return value"]
+      reactor: [type: :atom, required: true, doc: "The reactor that ran"],
+      result: [type: :any, required: true, doc: "The reactor's return value"]
     ]
 
   alias BB.Jido.Telemetry

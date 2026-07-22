@@ -56,6 +56,13 @@ defmodule BB.Jido.Action.CommandTest do
              )
   end
 
+  test "output schema requires the documented result fields" do
+    assert {:ok, _} =
+             Command.validate_output(%{command: :test_succeed, goal: %{}, outcome: :hello})
+
+    assert {:error, _} = Command.validate_output(%{})
+  end
+
   test "non-disarm state rejections stay {:command_failed, reason}" do
     assert {:error, {:command_failed, %BB.Error.State.NotAllowed{current_state: :idle}}} =
              Command.run(

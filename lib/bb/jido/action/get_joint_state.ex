@@ -29,8 +29,8 @@ defmodule BB.Jido.Action.GetJointState do
       robot: [type: :atom, required: true, doc: "Robot module"]
     ],
     output_schema: [
-      positions: [type: :map, doc: "Joint positions in radians, keyed by joint name"],
-      velocities: [type: :map, doc: "Joint velocities in rad/s, keyed by joint name"]
+      positions: [type: :map, required: true, doc: "Joint positions in radians, keyed by joint name"],
+      velocities: [type: :map, required: true, doc: "Joint velocities in rad/s, keyed by joint name"]
     ]
 
   alias BB.Robot.Runtime

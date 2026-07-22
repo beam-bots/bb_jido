@@ -52,7 +52,7 @@ defmodule BB.Jido.Action.WaitForState do
     category: "robotics",
     tags: ["beam-bots", "robot", "observation"],
     output_schema: [
-      state: [type: :atom, doc: "The state that was reached"]
+      state: [type: :atom, required: true, doc: "The state that was reached"]
     ],
     schema: [
       robot: [type: :atom, required: true, doc: "Robot module"],

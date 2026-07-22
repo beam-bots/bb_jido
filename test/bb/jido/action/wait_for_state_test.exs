@@ -59,6 +59,11 @@ defmodule BB.Jido.Action.WaitForStateTest do
     BB.PubSub.publish(TestRobot, [:state_machine], message)
   end
 
+  test "output schema requires the documented result fields" do
+    assert {:ok, _} = WaitForState.validate_output(%{state: :idle})
+    assert {:error, _} = WaitForState.validate_output(%{})
+  end
+
   test "returns immediately when the robot is already in an operational target state" do
     arm!()
 

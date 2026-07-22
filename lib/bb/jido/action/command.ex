@@ -70,9 +70,9 @@ defmodule BB.Jido.Action.Command do
       ]
     ],
     output_schema: [
-      command: [type: :atom, doc: "The command that ran"],
-      goal: [type: :map, doc: "The goal it was given"],
-      outcome: [type: :any, doc: "The command's result value"]
+      command: [type: :atom, required: true, doc: "The command that ran"],
+      goal: [type: :map, required: true, doc: "The goal it was given"],
+      outcome: [type: :any, required: true, doc: "The command's result value"]
     ]
 
   alias BB.Jido.Telemetry

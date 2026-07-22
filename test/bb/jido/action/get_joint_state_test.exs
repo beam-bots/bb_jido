@@ -14,6 +14,11 @@ defmodule BB.Jido.Action.GetJointStateTest do
     :ok
   end
 
+  test "output schema requires the documented result fields" do
+    assert {:ok, _} = GetJointState.validate_output(%{positions: %{}, velocities: %{}})
+    assert {:error, _} = GetJointState.validate_output(%{})
+  end
+
   test "returns joint positions and velocities and stores them as a state op" do
     assert {:ok, joint_state, [op]} = GetJointState.run(%{robot: TestRobot}, %{})
 
