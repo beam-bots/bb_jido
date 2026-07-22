@@ -226,6 +226,14 @@ defmodule BB.Jido.Plugin.Robot do
   defp gated_targets(actions, gated) when is_list(actions),
     do: Enum.flat_map(actions, &gated_targets(&1, gated))
 
+  # Jido also delivers actions as %Jido.Instruction{} structs (e.g. from
+  # another plugin's handle_signal/2 override); missing this shape would
+  # let a gated action through unchecked.
+  defp gated_targets(%Jido.Instruction{action: module, params: params}, gated)
+       when is_atom(module) do
+    if module in gated, do: [{module, params || %{}}], else: []
+  end
+
   defp gated_targets({module, params}, gated) when is_atom(module) do
     if module in gated, do: [{module, params}], else: []
   end

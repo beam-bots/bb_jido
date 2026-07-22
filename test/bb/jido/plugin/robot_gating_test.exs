@@ -107,6 +107,27 @@ defmodule BB.Jido.Plugin.RobotGatingTest do
                  gating_context([Command])
                )
     end
+
+    test "gates actions delivered as %Jido.Instruction{} structs" do
+      instruction = %Jido.Instruction{action: Command, params: %{command: :test_succeed}}
+
+      assert {:error, {:safety_not_armed, :disarmed}} =
+               Robot.prepare_action(nil, instruction, gating_context([Command]))
+
+      assert {:error, {:safety_not_armed, :disarmed}} =
+               Robot.prepare_action(nil, [instruction], gating_context([Command]))
+    end
+
+    test "rejects cross-robot params delivered as %Jido.Instruction{} structs" do
+      arm!()
+
+      instruction = %Jido.Instruction{action: Command, params: %{robot: SomeOtherRobot}}
+
+      assert {:error, {:robot_mismatch, details}} =
+               Robot.prepare_action(nil, instruction, gating_context([Command]))
+
+      assert details.requested == SomeOtherRobot
+    end
   end
 
   describe "signal-routed gating through an agent" do
