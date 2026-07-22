@@ -33,7 +33,7 @@ The filter runs inside `BB.PubSub` before the message is sent at all:
  %{
    robot: MyRobot,
    topics: [[:sensor]],
-   message_types: [BB.Sensor.ForceTorque]
+   message_types: [BB.Message.Sensor.Imu]
  }}
 ```
 

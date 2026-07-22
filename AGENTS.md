@@ -80,7 +80,8 @@ opt into higher-volume topics via the plugin's `:topics` (and `:message_types`
 Actions return a consistent tagged-error set: `{:error, :safety_disarmed}`,
 `{:error, {:command_failed, reason}}`, `{:error, {:reactor_failed, errors}}`,
 `{:error, {:reactor_halted, reason}}`, `{:error, :timeout}`,
-`{:error, {:subscribe_failed, reason}}`, `{:error, {:safety_not_armed, state}}`,
+`{:error, {:subscribe_failed, reason}}`, `{:error, {:wait_failed, reason}}`,
+`{:error, {:safety_not_armed, state}}`,
 `{:error, :robot_not_specified}`. See
 `documentation/reference/error-taxonomy.md` for when each fires.
 

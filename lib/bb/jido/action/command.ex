@@ -46,9 +46,11 @@ defmodule BB.Jido.Action.Command do
   call), it executes under `Jido.Exec`, which has two effects:
 
   - `Jido.Exec` enforces its own default 30s execution timeout regardless
-    of the `:timeout` param. A `:timeout` above 30s only takes effect if
-    the route or instruction sets a matching `Jido.Exec` `:timeout`
-    option (or the `:jido_action` `:default_timeout` config is raised).
+    of the `:timeout` param, and routed signals cannot override it (routed
+    modules become `{module, signal.data}` with no instruction opts). A
+    `:timeout` above 30s only takes effect if the `:jido_action`
+    `:default_timeout` config is raised, or the action is invoked through
+    an explicit instruction whose `:opts` set a `Jido.Exec` `:timeout`.
   - Error tuples are normalised into `Jido.Action.Error` exception
     structs; the tags above then appear under the error's details rather
     than as bare tuples.

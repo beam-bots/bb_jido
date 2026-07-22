@@ -143,6 +143,8 @@ Actions return a consistent tagged-error set:
 - `{:error, :timeout}` — `WaitForState` ran out of time
 - `{:error, {:subscribe_failed, reason}}` — `WaitForState` couldn't
   subscribe to the state topic
+- `{:error, {:wait_failed, reason}}` — `WaitForState`'s temporary
+  subscriber process exited abnormally
 - `{:error, {:safety_not_armed, state}}` — `BB.Jido.Action.SafetyAware`
   guard tripped
 - `{:error, :robot_not_specified}` — `SafetyAware` found no robot in

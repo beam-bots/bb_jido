@@ -21,6 +21,7 @@ pattern-match without inspecting strings.
 | `{:reactor_halted, halted}` | Reactor returned `{:halted, halted}` — execution was paused (e.g. a step asked to halt). `halted` is the halted reactor struct. | `BB.Jido.Action.Reactor` |
 | `:timeout` | `WaitForState` ran out of time before the target state was reached. | `BB.Jido.Action.WaitForState` |
 | `{:subscribe_failed, reason}` | `BB.PubSub.subscribe/3` refused the subscription. | `BB.Jido.Action.WaitForState` |
+| `{:wait_failed, reason}` | The temporary subscriber process exited abnormally before the wait resolved. | `BB.Jido.Action.WaitForState` |
 
 ## `BB.Jido.Action.SafetyAware` guard errors
 
@@ -43,9 +44,12 @@ When an action runs via a signal route, `Jido.Exec` normalises error
 tuples into `Jido.Action.Error` exception structs — the tag then appears
 under the error's details rather than as a bare tuple. `Jido.Exec` also
 enforces its own default 30s execution timeout independent of the
-actions' `:timeout` params; raise the route/instruction `:timeout`
-option (or the `:jido_action` `:default_timeout` config) for longer
-commands.
+actions' `:timeout` params — and routed signals cannot override it,
+because routed modules become `{module, signal.data}` with no
+instruction opts (Jido route options only cover routing priority). For
+longer commands, either raise the `:jido_action` `:default_timeout`
+config or invoke the action through an explicit instruction whose
+`:opts` set a `Jido.Exec` `:timeout`.
 
 ## Pattern-matching cheatsheet
 
