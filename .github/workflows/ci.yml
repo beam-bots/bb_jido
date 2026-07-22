@@ -19,7 +19,7 @@ permissions:
 
 jobs:
   CI:
-    uses: beam-bots/.github/.github/workflows/elixir-ci.yml@41f7de3f701dfd06440c6f28262d0870b0c4753b # main
+    uses: beam-bots/.github/.github/workflows/elixir-ci.yml@3f1f910d7d04bddf0f5dce2c55c32e47b6f5c550 # main
     with:
       enable-docs-deploy: true
       enable-release: true
