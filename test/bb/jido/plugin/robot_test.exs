@@ -47,23 +47,49 @@ defmodule BB.Jido.Plugin.RobotTest do
 
   describe "config_schema" do
     test "applies defaults and accepts a minimal config" do
-      assert {:ok, config} = Zoi.parse(Robot.config_schema(), %{robot: SomeRobot})
+      assert {:ok, config} = Zoi.parse(Robot.config_schema(), %{robot: BB.Jido.TestRobot})
 
-      assert config.robot == SomeRobot
+      assert config.robot == BB.Jido.TestRobot
       assert config.topics == [[:state_machine]]
       assert config.message_types == []
       assert config.gated_actions == []
       refute Map.has_key?(config, :throttle_ms)
     end
 
+    test "accepts real Jido.Action modules as gated_actions" do
+      assert {:ok, config} =
+               Zoi.parse(Robot.config_schema(), %{
+                 robot: BB.Jido.TestRobot,
+                 gated_actions: [BB.Jido.Action.Command, BB.Jido.Action.Reactor]
+               })
+
+      assert config.gated_actions == [BB.Jido.Action.Command, BB.Jido.Action.Reactor]
+    end
+
     test "rejects a config without :robot" do
       assert {:error, _errors} = Zoi.parse(Robot.config_schema(), %{})
+    end
+
+    test "rejects a nil or non-robot :robot" do
+      assert {:error, _errors} = Zoi.parse(Robot.config_schema(), %{robot: nil})
+      assert {:error, _errors} = Zoi.parse(Robot.config_schema(), %{robot: NoSuchRobot})
+      assert {:error, _errors} = Zoi.parse(Robot.config_schema(), %{robot: String})
+    end
+
+    test "rejects gated_actions entries that are not real Jido.Action modules" do
+      for bad <- [[BB.Jido.Action.Comand], [nil], [String]] do
+        assert {:error, _errors} =
+                 Zoi.parse(Robot.config_schema(), %{
+                   robot: BB.Jido.TestRobot,
+                   gated_actions: bad
+                 })
+      end
     end
 
     test "rejects unrecognised config keys instead of silently dropping them" do
       assert {:error, errors} =
                Zoi.parse(Robot.config_schema(), %{
-                 robot: SomeRobot,
+                 robot: BB.Jido.TestRobot,
                  gated_action: [BB.Jido.Action.Command]
                })
 
@@ -72,7 +98,7 @@ defmodule BB.Jido.Plugin.RobotTest do
 
     test "rejects a non-positive throttle" do
       assert {:error, _errors} =
-               Zoi.parse(Robot.config_schema(), %{robot: SomeRobot, throttle_ms: 0})
+               Zoi.parse(Robot.config_schema(), %{robot: BB.Jido.TestRobot, throttle_ms: 0})
     end
   end
 

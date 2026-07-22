@@ -94,7 +94,9 @@ defmodule BB.Jido.Plugin.Robot do
     config_schema:
       Zoi.object(
         %{
-          robot: Zoi.atom(description: "Beam Bots robot module"),
+          robot:
+            Zoi.atom(description: "Beam Bots robot module")
+            |> Zoi.refine({__MODULE__, :validate_robot_module, []}),
           topics:
             Zoi.list(Zoi.list(Zoi.atom()),
               description: "BB.PubSub paths to bridge (replaces the default)"
@@ -113,6 +115,9 @@ defmodule BB.Jido.Plugin.Robot do
             Zoi.list(Zoi.atom(),
               description: "Action modules refused via prepare_action/3 unless the robot is armed"
             )
+            # A misspelt module atom would validate as an atom, never match
+            # the real routed action, and silently leave it ungated.
+            |> Zoi.refine({Jido.Plugin, :validate_plugin_actions, []})
             |> Zoi.default([])
         },
         # A typo'd key (e.g. `gated_action:`) must be a hard error, not a
@@ -137,10 +142,21 @@ defmodule BB.Jido.Plugin.Robot do
 
   alias BB.Jido.PubSubBridge
 
+  @doc false
+  @spec validate_robot_module(term(), keyword()) :: :ok | {:error, String.t()}
+  def validate_robot_module(robot, _opts \\ []) do
+    if is_atom(robot) and not is_nil(robot) and Code.ensure_loaded?(robot) and
+         function_exported?(robot, :spark_is, 0) and robot.spark_is() == BB do
+      :ok
+    else
+      {:error, "expected a Beam Bots robot module (one that `use BB`), got: #{inspect(robot)}"}
+    end
+  end
+
   @impl Jido.Plugin
   def mount(_agent, config) do
     case Map.fetch(config, :robot) do
-      {:ok, robot} when is_atom(robot) ->
+      {:ok, robot} when is_atom(robot) and not is_nil(robot) ->
         {:ok,
          %{
            robot: robot,
