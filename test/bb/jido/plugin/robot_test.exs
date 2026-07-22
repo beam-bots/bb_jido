@@ -33,6 +33,14 @@ defmodule BB.Jido.Plugin.RobotTest do
       assert {"safety.error", BB.Jido.Action.RecordSafetyError} in routes
     end
 
+    test "is a singleton and rejects as: aliasing" do
+      assert Robot.singleton?()
+
+      assert_raise ArgumentError, ~r/singleton/, fn ->
+        Jido.Plugin.Instance.new({Robot, [as: :left, robot: BB.Jido.TestRobot]})
+      end
+    end
+
     test "advertises the standard robot actions" do
       actions = Robot.actions()
 

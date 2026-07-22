@@ -78,6 +78,10 @@ defmodule BB.Jido.Plugin.Robot do
              %{robot: MyRobot, gated_actions: [BB.Jido.Action.Command]}}
           ]
       end
+
+  The plugin is a singleton: one robot per agent, and `as:` aliasing is
+  rejected at agent definition. To control several robots, run one agent
+  per robot.
   """
 
   # Plugin name is `bb` so that Jido v2's plugin-route prefixing yields
@@ -90,6 +94,13 @@ defmodule BB.Jido.Plugin.Robot do
     tags: ["beam-bots", "robotics"],
     vsn: Mix.Project.config()[:version],
     capabilities: [:robot_control, :robot_observation],
+    # One robot plugin per agent: the bridge emits fixed `bb.*` signal
+    # types and the state-caching actions write to the fixed `:robot`
+    # slice, so an `as:`-aliased instance (state key :robot_left, route
+    # prefix left.bb) would receive no bridged signals and write effects
+    # to the wrong slice. Multi-robot agents need an alias-aware bridge
+    # and state ops first.
+    singleton: true,
     state_key: :robot,
     config_schema:
       Zoi.object(
