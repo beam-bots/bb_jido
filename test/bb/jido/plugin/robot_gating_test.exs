@@ -126,6 +126,36 @@ defmodule BB.Jido.Plugin.RobotGatingTest do
 
       assert details.requested == SomeOtherRobot
     end
+
+    test "gates the 3- and 4-element instruction tuple forms" do
+      assert {:error, {:safety_not_armed, :disarmed}} =
+               Robot.prepare_action(nil, {Command, %{}, %{}}, gating_context([Command]))
+
+      assert {:error, {:safety_not_armed, :disarmed}} =
+               Robot.prepare_action(nil, {Command, %{}, %{}, []}, gating_context([Command]))
+    end
+
+    test "rejects cross-robot keyword-list params" do
+      arm!()
+
+      assert {:error, {:robot_mismatch, details}} =
+               Robot.prepare_action(
+                 nil,
+                 {Command, [robot: SomeOtherRobot, command: :test_succeed]},
+                 gating_context([Command])
+               )
+
+      assert details.requested == SomeOtherRobot
+    end
+
+    test "fails closed on an action argument Jido cannot normalise" do
+      assert {:error, {:ungateable_action_arg, _reason}} =
+               Robot.prepare_action(nil, 42, gating_context([Command]))
+    end
+
+    test "passes unnormalisable arguments through when nothing is gated" do
+      assert {:ok, %{}} = Robot.prepare_action(nil, 42, gating_context([]))
+    end
   end
 
   describe "signal-routed gating through an agent" do

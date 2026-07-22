@@ -181,11 +181,33 @@ defmodule BB.Jido.Plugin.Robot do
 
   @impl Jido.Plugin
   def prepare_action(_signal, action_arg, %{config: config}) do
-    gated = Map.get(config, :gated_actions, [])
-
-    case gated_targets(action_arg, gated) do
+    case Map.get(config, :gated_actions, []) do
       [] -> {:ok, %{}}
-      targets -> authorize_targets(targets, Map.fetch!(config, :robot))
+      gated -> gate(action_arg, gated, Map.fetch!(config, :robot))
+    end
+  end
+
+  # Normalising through Jido's own Instruction.normalize/3 covers every
+  # action-argument shape Jido accepts (module, 2/3/4-tuples, keyword or
+  # map params, %Jido.Instruction{}, and lists thereof) — enumerating
+  # shapes by hand here is how gated forms slip through. An argument Jido
+  # itself cannot normalise could never execute, but the gate still fails
+  # closed rather than guessing.
+  defp gate(action_arg, gated, configured_robot) do
+    case Jido.Instruction.normalize(action_arg) do
+      {:ok, instructions} ->
+        targets =
+          for %Jido.Instruction{action: module, params: params} <- instructions,
+              module in gated,
+              do: {module, params}
+
+        case targets do
+          [] -> {:ok, %{}}
+          targets -> authorize_targets(targets, configured_robot)
+        end
+
+      {:error, reason} ->
+        {:error, {:ungateable_action_arg, reason}}
     end
   end
 
@@ -222,27 +244,6 @@ defmodule BB.Jido.Plugin.Robot do
       other -> {:error, {:safety_not_armed, other}}
     end
   end
-
-  defp gated_targets(actions, gated) when is_list(actions),
-    do: Enum.flat_map(actions, &gated_targets(&1, gated))
-
-  # Jido also delivers actions as %Jido.Instruction{} structs (e.g. from
-  # another plugin's handle_signal/2 override); missing this shape would
-  # let a gated action through unchecked.
-  defp gated_targets(%Jido.Instruction{action: module, params: params}, gated)
-       when is_atom(module) do
-    if module in gated, do: [{module, params || %{}}], else: []
-  end
-
-  defp gated_targets({module, params}, gated) when is_atom(module) do
-    if module in gated, do: [{module, params}], else: []
-  end
-
-  defp gated_targets(module, gated) when is_atom(module) do
-    if module in gated, do: [{module, %{}}], else: []
-  end
-
-  defp gated_targets(_other, _gated), do: []
 
   defp default_topics, do: [[:state_machine]]
 
