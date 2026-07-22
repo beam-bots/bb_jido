@@ -5,8 +5,6 @@
 defmodule BB.Jido.Plugin.RobotGatingTest do
   use ExUnit.Case, async: false
 
-  import ExUnit.CaptureLog
-
   alias BB.Jido.Action.Command
   alias BB.Jido.Plugin.Robot
   alias BB.Jido.TestRobot
@@ -145,13 +143,11 @@ defmodule BB.Jido.Plugin.RobotGatingTest do
           goal: %{value: :gated_hello}
         })
 
-      log =
-        capture_log(fn ->
-          :ok = Jido.AgentServer.cast(agent, command_signal)
-          Process.sleep(200)
-        end)
+      # A synchronous call surfaces the prepare_action refusal directly,
+      # with no reliance on log timing.
+      assert {:error, refusal} = Jido.AgentServer.call(agent, command_signal)
+      assert inspect(refusal) =~ "safety_not_armed"
 
-      assert log =~ "safety_not_armed"
       {:ok, server_state} = Jido.AgentServer.state(agent)
       refute Map.has_key?(server_state.agent.state, :outcome)
 
