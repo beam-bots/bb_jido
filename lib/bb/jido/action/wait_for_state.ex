@@ -78,13 +78,18 @@ defmodule BB.Jido.Action.WaitForState do
     # The subscription lives in a throwaway process: BB.PubSub registers
     # (and unregisters) the *calling* process per path, so subscribing
     # from the caller would silently remove any subscription the caller
-    # already holds on [:state_machine] when the wait cleans up.
+    # already holds on [:state_machine] when the wait cleans up. The
+    # waiter monitors the caller so that a killed caller (e.g. Jido.Exec
+    # timing the action out) can't orphan the subscription until the
+    # waiter's own deadline.
     {waiter, monitor} =
       spawn_monitor(fn ->
+        caller = Process.monitor(parent)
+
         case BB.PubSub.subscribe(robot, [:state_machine], message_types: [Transition]) do
           {:ok, _pid} ->
             send(parent, {ref, :subscribed})
-            send(parent, {ref, receive_transition(target, deadline)})
+            send(parent, {ref, receive_transition(target, deadline, caller)})
 
           {:error, reason} ->
             send(parent, {ref, {:error, {:subscribe_failed, reason}}})
@@ -146,7 +151,7 @@ defmodule BB.Jido.Action.WaitForState do
   defp in_state?(robot, :armed), do: BB.Safety.state(robot) == :armed
   defp in_state?(robot, target), do: Runtime.state(robot) == target
 
-  defp receive_transition(target, deadline) do
+  defp receive_transition(target, deadline, caller) do
     remaining = deadline - System.monotonic_time(:millisecond)
 
     if remaining <= 0 do
@@ -157,7 +162,12 @@ defmodule BB.Jido.Action.WaitForState do
           {:ok, %{state: target}}
 
         {:bb, [:state_machine], %Message{payload: %Transition{}}} ->
-          receive_transition(target, deadline)
+          receive_transition(target, deadline, caller)
+
+        {:DOWN, ^caller, :process, _pid, _reason} ->
+          # Nobody is waiting for the result any more; exiting drops the
+          # subscription via the registry's monitor.
+          exit(:normal)
       after
         remaining ->
           {:error, :timeout}

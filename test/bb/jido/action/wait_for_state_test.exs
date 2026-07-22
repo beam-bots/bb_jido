@@ -24,6 +24,26 @@ defmodule BB.Jido.Action.WaitForStateTest do
     TestRobot
     |> BB.PubSub.subscribers([:state_machine])
     |> Enum.map(&elem(&1, 0))
+    |> Enum.sort()
+  end
+
+  defp await(condition, failure_message, timeout_ms \\ 2_000) do
+    deadline = System.monotonic_time(:millisecond) + timeout_ms
+    poll_condition(condition, failure_message, deadline)
+  end
+
+  defp poll_condition(condition, failure_message, deadline) do
+    cond do
+      condition.() ->
+        :ok
+
+      System.monotonic_time(:millisecond) > deadline ->
+        flunk(failure_message)
+
+      true ->
+        Process.sleep(10)
+        poll_condition(condition, failure_message, deadline)
+    end
   end
 
   defp publish_transition(to) do
@@ -106,6 +126,24 @@ defmodule BB.Jido.Action.WaitForStateTest do
 
     publish_transition(:executing)
     assert_receive {:bb, [:state_machine], %Message{payload: %Transition{to: :executing}}}, 500
+  end
+
+  test "a killed caller takes the waiter's subscription down with it" do
+    baseline = subscriber_pids()
+
+    caller =
+      spawn(fn ->
+        WaitForState.run(%{robot: TestRobot, target: :never_reached, timeout: 60_000}, %{})
+      end)
+
+    await(fn -> subscriber_pids() != baseline end, "waiter never subscribed")
+
+    Process.exit(caller, :kill)
+
+    await(
+      fn -> subscriber_pids() == baseline end,
+      "waiter subscription survived its caller"
+    )
   end
 
   test "leaves no pubsub messages in the caller's mailbox" do
