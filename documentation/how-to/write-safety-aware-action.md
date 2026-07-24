@@ -1,5 +1,6 @@
 <!--
 SPDX-FileCopyrightText: 2026 James Harton
+SPDX-FileCopyrightText: 2026 Holden Oullette
 
 SPDX-License-Identifier: Apache-2.0
 -->
@@ -78,10 +79,20 @@ MyRobot.Actions.MoveSomewhere.run(%{pose: pose}, %{robot: MyRobot})
 
 ## Don't double-guard
 
-`BB.Jido.Action.Command` already maps `:disarmed` exits onto
+`BB.Jido.Action.Command` already maps disarmed-state rejections onto
 `{:error, :safety_disarmed}`. The safety guard adds an *early* refusal so
 the command is never even started — useful if starting the command would
 itself have side effects (logging, telemetry, allocating resources).
+
+## Plugin-level gating
+
+For signal-routed execution, `BB.Jido.Plugin.Robot` can enforce the same
+guard centrally: list the actions in the plugin's `:gated_actions` config
+and they're refused with `{:error, {:safety_not_armed, state}}` before
+they execute, no mixin required. Use the mixin when the action must be
+guarded everywhere it's called (including reactor steps and direct
+`run/2` calls); use `:gated_actions` when you want one agent-level policy
+for routed signals. They compose — gating both ways is harmless.
 
 ## See also
 

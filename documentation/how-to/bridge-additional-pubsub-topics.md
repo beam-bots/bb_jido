@@ -1,5 +1,6 @@
 <!--
 SPDX-FileCopyrightText: 2026 James Harton
+SPDX-FileCopyrightText: 2026 Holden Oullette
 
 SPDX-License-Identifier: Apache-2.0
 -->
@@ -29,7 +30,7 @@ defmodule MyRobot.Agent do
          topics: [
            [:state_machine],
            [:safety, :error],
-           [:sensor, :force_torque]
+           [:sensor, :joint_state]
          ]
        }}
     ]
@@ -37,9 +38,9 @@ end
 ```
 
 Each entry is a list of atoms — the same format that
-`BB.PubSub.subscribe/3` accepts. The list is appended on top of the BB
-defaults, not merged, so include `[:state_machine]` explicitly if you
-still want it.
+`BB.PubSub.subscribe/3` accepts. The list *replaces* the default
+(`[[:state_machine]]`) rather than adding to it, so include
+`[:state_machine]` explicitly if you still want it.
 
 ## Restrict by payload type
 
@@ -51,7 +52,7 @@ its descendants. Restrict at the PubSub layer with `:message_types`:
  %{
    robot: MyRobot,
    topics: [[:sensor]],
-   message_types: [BB.Sensor.JointState, BB.Sensor.ForceTorque]
+   message_types: [BB.Message.Sensor.JointState, BB.Message.Sensor.Imu]
  }}
 ```
 
@@ -66,6 +67,7 @@ Each forwarded message becomes a `Jido.Signal` with a stable type string:
 |---|---|
 | `BB.StateMachine.Transition` | `bb.state.transition` |
 | `BB.Safety.HardwareError` | `bb.safety.error` |
+| `BB.Parameter.Changed` | `bb.parameter.changed` |
 | Anything else | `bb.pubsub.<dotted source path>` |
 
 So a sensor publishing on `[:sensor, :force_torque]` becomes

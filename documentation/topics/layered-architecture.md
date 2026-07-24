@@ -80,7 +80,7 @@ Use the agent to pick *which* reactor to run. Use the reactor to run it.
 |---|---|---|
 | Joint positions | BB runtime (ETS) | `BB.Robot.Runtime.positions/1` |
 | Safety state | BB safety controller (ETS) | `BB.Safety.state/1` |
-| Last transition (cached) | Robot plugin in agent state | `agent.state.robot.safety_state` |
+| Safety state (cached) | Robot plugin in agent state | `agent.state.robot.safety_state` |
 | Reactor intermediate results | Reactor (ephemeral) | `context` per step |
 | Application goals/queues | Your plugins | plugin state slice |
 

@@ -52,13 +52,18 @@ defmodule BB.Jido.Action.ReactorTest do
   end
 
   test "runs a reactor and surfaces the result" do
-    assert {:ok, %{robot: TestRobot, reactor: SuccessReactor, result: result}} =
+    assert {:ok, %{reactor: SuccessReactor, result: result}} =
              ReactorAction.run(
                %{robot: TestRobot, reactor: SuccessReactor, inputs: %{value: :ok_value}},
                %{}
              )
 
     assert result.outcome == :ok_value
+  end
+
+  test "output schema requires the documented result fields" do
+    assert {:ok, _} = ReactorAction.validate_output(%{reactor: SuccessReactor, result: :ok})
+    assert {:error, _} = ReactorAction.validate_output(%{})
   end
 
   test "wraps reactor errors" do

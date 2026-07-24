@@ -1,4 +1,5 @@
 # SPDX-FileCopyrightText: 2026 James Harton
+# SPDX-FileCopyrightText: 2026 Holden Oullette
 #
 # SPDX-License-Identifier: Apache-2.0
 
@@ -74,14 +75,46 @@ defmodule BB.Jido.PubSubBridgeTest do
       monotonic_time: 0,
       wall_time: 0,
       node: node(),
-      frame_id: :state_machine,
-      payload: %Transition{from: :disarmed, to: :armed}
+      frame_id: :sensor,
+      payload: %{__struct__: FakeSensorReading, value: 1}
     }
 
-    send(bridge, {:bb, [:state_machine], msg})
-    assert_receive {:agent_received, _}, 500
+    send(bridge, {:bb, [:sensor, :fake], msg})
+    assert_receive {:agent_received, %{type: "bb.pubsub.sensor.fake"}}, 500
 
-    send(bridge, {:bb, [:state_machine], msg})
+    send(bridge, {:bb, [:sensor, :fake], msg})
     refute_receive {:agent_received, _}, 200
+  end
+
+  test "safety transitions bypass the throttle so a disarm is never dropped", %{agent: agent} do
+    {:ok, bridge} =
+      PubSubBridge.start_link(
+        robot: TestRobot,
+        agent: agent,
+        topics: [[:state_machine]],
+        throttle_ms: 60_000
+      )
+
+    transition = fn from, to ->
+      %Message{
+        monotonic_time: 0,
+        wall_time: 0,
+        node: node(),
+        frame_id: :state_machine,
+        payload: %Transition{from: from, to: to}
+      }
+    end
+
+    send(bridge, {:bb, [:state_machine], transition.(:disarmed, :armed)})
+
+    assert_receive {:agent_received,
+                    %{data: %{message: %Message{payload: %Transition{to: :armed}}}}},
+                   500
+
+    send(bridge, {:bb, [:state_machine], transition.(:armed, :disarmed)})
+
+    assert_receive {:agent_received,
+                    %{data: %{message: %Message{payload: %Transition{to: :disarmed}}}}},
+                   500
   end
 end

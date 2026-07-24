@@ -1,4 +1,5 @@
 # SPDX-FileCopyrightText: 2026 James Harton
+# SPDX-FileCopyrightText: 2026 Holden Oullette
 #
 # SPDX-License-Identifier: Apache-2.0
 
@@ -7,6 +8,7 @@ defmodule BB.Jido.SignalTest do
 
   alias BB.Jido.Signal, as: SignalMap
   alias BB.Message
+  alias BB.Parameter.Changed
   alias BB.Safety.HardwareError
   alias BB.StateMachine.Transition
 
@@ -29,6 +31,7 @@ defmodule BB.Jido.SignalTest do
 
       assert signal.type == "bb.state.transition"
       assert signal.source == "/bb/SomeRobot"
+      assert signal.subject == "SomeRobot"
       assert signal.data.robot == SomeRobot
       assert signal.data.path == [:state_machine]
       assert signal.data.message == msg
@@ -41,6 +44,16 @@ defmodule BB.Jido.SignalTest do
 
       assert signal.type == "bb.safety.error"
       assert signal.data.message.payload == %HardwareError{path: [:joint1], error: :oops}
+    end
+
+    test "maps parameter changes to bb.parameter.changed" do
+      payload = %Changed{path: [:controller, :gain], old_value: 1.0, new_value: 2.0}
+      msg = message(payload)
+
+      signal = SignalMap.from_pubsub(SomeRobot, [:param, :controller, :gain], msg)
+
+      assert signal.type == "bb.parameter.changed"
+      assert signal.data.message.payload == payload
     end
 
     test "maps unknown payloads to bb.pubsub.<path>" do
@@ -58,7 +71,18 @@ defmodule BB.Jido.SignalTest do
       signal = SignalMap.from_pubsub(nil, [:state_machine], msg)
 
       assert signal.source == "/bb/OtherRobot"
+      assert signal.subject == "OtherRobot"
       assert signal.data.robot == OtherRobot
+    end
+  end
+
+  describe "subject/1" do
+    test "renders the robot module name" do
+      assert SignalMap.subject(MyRobot) == "MyRobot"
+    end
+
+    test "is nil for a nil robot" do
+      assert SignalMap.subject(nil) == nil
     end
   end
 
@@ -69,6 +93,9 @@ defmodule BB.Jido.SignalTest do
 
       assert SignalMap.type_for([:safety, :error], %HardwareError{path: [], error: :x}) ==
                "bb.safety.error"
+
+      assert SignalMap.type_for([:param, :gain], %Changed{path: [:gain]}) ==
+               "bb.parameter.changed"
     end
 
     test "defaults to bb.pubsub.<dotted path>" do

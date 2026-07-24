@@ -35,6 +35,7 @@ The signal's type follows the `bb.*` namespace:
 |---|---|
 | State machine transitions | `bb.state.transition` |
 | Safety hardware errors | `bb.safety.error` |
+| Parameter changes | `bb.parameter.changed` |
 | Anything else | `bb.pubsub.<dotted.path>` |
 
 ## Step 1: Watch transitions arrive
@@ -175,7 +176,7 @@ plugins: [
    %{
      robot: MyRobot,
      topics: [[:state_machine], [:sensor, :joint_state]],
-     message_types: [BB.StateMachine.Transition, BB.Sensor.JointState]
+     message_types: [BB.StateMachine.Transition, BB.Message.Sensor.JointState]
    }}
 ]
 ```

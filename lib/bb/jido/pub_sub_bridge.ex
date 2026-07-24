@@ -1,4 +1,5 @@
 # SPDX-FileCopyrightText: 2026 James Harton
+# SPDX-FileCopyrightText: 2026 Holden Oullette
 #
 # SPDX-License-Identifier: Apache-2.0
 
@@ -28,6 +29,12 @@ defmodule BB.Jido.PubSubBridge do
   Topic and message-type filtering happen at the PubSub layer (cheap). The
   bridge additionally enforces an optional per-type throttle to limit signal
   volume for high-frequency topics (e.g. joint states at 100Hz).
+
+  Safety-critical signal types (`bb.state.transition` and
+  `bb.safety.error`) are exempt from throttling: dropping a `:disarmed`
+  transition inside the throttle window would leave safety caches (such as
+  the robot plugin's `safety_state`) falsely armed. These topics are
+  low-volume, so the exemption doesn't defeat the throttle's purpose.
   """
 
   use GenServer
@@ -105,7 +112,14 @@ defmodule BB.Jido.PubSubBridge do
     end
   end
 
+  # Dropping a safety transition (e.g. :armed -> :disarmed) would leave
+  # downstream safety caches stale, so these types always pass.
+  @throttle_exempt_types ["bb.state.transition", "bb.safety.error"]
+
   defp maybe_emit(_signal, %{throttle_ms: nil} = state), do: {:emit, state}
+
+  defp maybe_emit(%{type: type}, state) when type in @throttle_exempt_types,
+    do: {:emit, state}
 
   defp maybe_emit(signal, %{throttle_ms: throttle_ms} = state) do
     now = System.monotonic_time(:millisecond)

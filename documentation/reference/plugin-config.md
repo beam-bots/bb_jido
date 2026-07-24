@@ -1,5 +1,6 @@
 <!--
 SPDX-FileCopyrightText: 2026 James Harton
+SPDX-FileCopyrightText: 2026 Holden Oullette
 
 SPDX-License-Identifier: Apache-2.0
 -->
@@ -18,12 +19,29 @@ use Jido.Agent,
 
 ### Config
 
+Config is validated against the plugin's `config_schema` when the agent
+is defined — a missing `:robot`, a mistyped value, or an unrecognised
+key (e.g. a typo'd `gated_action:`) raises at compile time rather than
+surfacing later at runtime.
+
 | Key | Type | Required | Default | Description |
 |---|---|---|---|---|
 | `:robot` | `module()` | yes | — | The Beam Bots robot module |
 | `:topics` | `[[atom()]]` | no | `[[:state_machine]]` | PubSub paths the bridge subscribes to |
 | `:message_types` | `[module()]` | no | `[]` | Payload modules to filter on (`[]` = no filter) |
 | `:throttle_ms` | `pos_integer()` | no | `nil` | Minimum interval between same-type signals |
+| `:gated_actions` | `[module()]` | no | `[]` | Actions refused before execution unless `BB.Safety.state/1` is `:armed` |
+
+With `gated_actions: [BB.Jido.Action.Command, BB.Jido.Action.Reactor]`,
+routed signals resolving to those actions fail closed with
+`{:error, {:safety_not_armed, state}}` via the plugin's
+`prepare_action/3` hook. The gate authorises the *configured* robot, so
+a gated action whose params name a different robot is rejected with
+`{:error, {:robot_mismatch, %{configured: ..., requested: ..., action: ...}}}`
+rather than authorised against the wrong robot's safety state. The gate
+covers signal-routed execution only — direct `run/2` calls bypass it, so
+keep `BB.Jido.Action.SafetyAware` on actions that must be guarded
+everywhere.
 
 ### State
 
@@ -32,8 +50,9 @@ The plugin owns the agent's `:robot` state slice:
 | Field | Type | Initial | Description |
 |---|---|---|---|
 | `:robot` | `module()` | the configured robot | Mirror of `config[:robot]` for convenience |
-| `:safety_state` | `atom()` | `:unknown` | Cached safety state; updated when a `bb.state.transition` signal arrives |
-| `:last_joint_state` | `map()` | `%{}` | Reserved for joint-state caching (not yet populated) |
+| `:safety_state` | `atom()` | `:unknown` | Cached safety state (`:armed`, `:disarmed`, `:disarming`, or `:error`); updated by the routed `BB.Jido.Action.UpdateSafetyState` when a `bb.state.transition` signal carries a safety transition |
+| `:last_safety_error` | `BB.Safety.HardwareError.t() \| nil` | `nil` | Last hardware error; updated by the routed `BB.Jido.Action.RecordSafetyError` when the `[:safety, :error]` topic is bridged |
+| `:last_joint_state` | `map()` | `%{}` | Last read `%{positions: ..., velocities: ...}`; updated whenever `BB.Jido.Action.GetJointState` runs |
 
 ### Built-in actions
 
@@ -42,7 +61,9 @@ The plugin owns the agent's `:robot` state slice:
 | `BB.Jido.Action.Command` | `bb.command.execute` | Run a BB command via `BB.Command.await/2` |
 | `BB.Jido.Action.Reactor` | `bb.reactor.run` | Run a `bb_reactor` workflow with `context.private.bb_robot` set |
 | `BB.Jido.Action.WaitForState` | `bb.state.wait` | Block until robot reaches a target state |
-| `BB.Jido.Action.GetJointState` | (none — call directly) | Read positions/velocities from `BB.Robot.Runtime` |
+| `BB.Jido.Action.GetJointState` | (none — call directly) | Read positions/velocities from `BB.Robot.Runtime`; caches them at `:last_joint_state` |
+| `BB.Jido.Action.UpdateSafetyState` | `bb.state.transition` | Cache safety transitions at `:safety_state` |
+| `BB.Jido.Action.RecordSafetyError` | `bb.safety.error` | Record hardware errors at `:last_safety_error` |
 
 ### Child processes
 
