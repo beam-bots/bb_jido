@@ -9,7 +9,7 @@ defmodule BB.Jido.MixProject do
   Autonomous agents for Beam Bots.
   """
 
-  @version "0.1.3"
+  @version "0.1.4"
 
   def project do
     [

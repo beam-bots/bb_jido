@@ -11,6 +11,15 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.1.4](https://github.com/beam-bots/bb_jido/compare/v0.1.3...v0.1.4) (2026-07-24)
+
+
+
+
+### Bug Fixes:
+
+* plugin state integration, WaitForState races, command error mapping; doc drift; Jido idioms (RFC) (#53) by houllette
+
 ## [v0.1.3](https://github.com/beam-bots/bb_jido/compare/v0.1.2...v0.1.3) (2026-06-25)
 
 
