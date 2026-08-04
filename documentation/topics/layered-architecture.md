@@ -78,7 +78,7 @@ Use the agent to pick *which* reactor to run. Use the reactor to run it.
 
 | State | Owner | Where |
 |---|---|---|
-| Joint positions | BB runtime (ETS) | `BB.Robot.Runtime.positions/1` |
+| Joint positions | BB runtime (ETS) | `BB.Robot.Runtime.configurations/1` |
 | Safety state | BB safety controller (ETS) | `BB.Safety.state/1` |
 | Safety state (cached) | Robot plugin in agent state | `agent.state.robot.safety_state` |
 | Reactor intermediate results | Reactor (ephemeral) | `context` per step |
