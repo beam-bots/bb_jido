@@ -11,6 +11,13 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.2.0](https://github.com/beam-bots/bb_jido/compare/v0.1.4...v0.2.0) (2026-08-04)
+### Breaking Changes:
+
+* follow the `positions` to `configurations` rename in core (#73) by James Harton
+
+
+
 ## [v0.1.4](https://github.com/beam-bots/bb_jido/compare/v0.1.3...v0.1.4) (2026-07-24)
 
 
