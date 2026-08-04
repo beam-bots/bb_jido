@@ -47,7 +47,7 @@ defmodule BB.Jido.Action.GetJointState do
   @impl Jido.Action
   def run(%{robot: robot}, _context) do
     joint_state = %{
-      positions: Runtime.positions(robot),
+      positions: Runtime.configurations(robot),
       velocities: Runtime.velocities(robot)
     }
 
