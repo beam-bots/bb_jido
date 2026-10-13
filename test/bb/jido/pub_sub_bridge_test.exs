@@ -83,7 +83,9 @@ defmodule BB.Jido.PubSubBridgeTest do
     assert_receive {:agent_received, %{type: "bb.pubsub.sensor.fake"}}, 500
 
     send(bridge, {:bb, [:sensor, :fake], msg})
-    refute_receive {:agent_received, _}, 200
+    :sys.get_state(bridge)
+    :sys.get_state(agent)
+    refute_received {:agent_received, _}
   end
 
   test "safety transitions bypass the throttle so a disarm is never dropped", %{agent: agent} do

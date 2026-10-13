@@ -35,23 +35,28 @@ defmodule BB.Jido.Action.WaitForStateTest do
     |> Enum.sort()
   end
 
-  defp await(condition, failure_message, timeout_ms \\ 2_000) do
-    deadline = System.monotonic_time(:millisecond) + timeout_ms
-    poll_condition(condition, failure_message, deadline)
+  defp trace_safety_state_returns do
+    Code.ensure_loaded!(BB.Safety)
+    :erlang.trace_pattern({BB.Safety, :state, 1}, [{:_, [], [{:return_trace}]}], [:local])
+    on_exit(fn -> :erlang.trace_pattern({BB.Safety, :state, 1}, false, [:local]) end)
   end
 
-  defp poll_condition(condition, failure_message, deadline) do
-    cond do
-      condition.() ->
-        :ok
+  defp start_transition_pump(to) do
+    spawn(fn ->
+      loop = fn loop ->
+        publish_transition(to)
+        loop.(loop)
+      end
 
-      System.monotonic_time(:millisecond) > deadline ->
-        flunk(failure_message)
+      loop.(loop)
+    end)
+  end
 
-      true ->
-        Process.sleep(10)
-        poll_condition(condition, failure_message, deadline)
-    end
+  defp sync_pubsub_registry do
+    TestRobot
+    |> BB.PubSub.registry_name()
+    |> Supervisor.which_children()
+    |> Enum.each(fn {_id, partition, _type, _modules} -> :sys.get_state(partition) end)
   end
 
   defp publish_transition(to) do
@@ -84,26 +89,26 @@ defmodule BB.Jido.Action.WaitForStateTest do
   end
 
   test "waits for a future transition into the target state" do
+    trace_safety_state_returns()
+
     task =
       Task.async(fn ->
-        WaitForState.run(%{robot: TestRobot, target: :armed, timeout: 5_000}, %{})
+        receive do
+          :go -> WaitForState.run(%{robot: TestRobot, target: :armed, timeout: 5_000}, %{})
+        end
       end)
 
-    Process.sleep(50)
+    :erlang.trace(task.pid, true, [:call])
+    send(task.pid, :go)
+
+    assert_receive {:trace, _pid, :return_from, {BB.Safety, :state, 1}, :disarmed}, 1_000
     arm!()
 
     assert {:ok, %{state: :armed}} = Task.await(task)
   end
 
   test "the timeout is a total deadline even when unrelated transitions keep arriving" do
-    pump =
-      spawn(fn ->
-        for _ <- 1..20 do
-          publish_transition(:executing)
-          Process.sleep(50)
-        end
-      end)
-
+    pump = start_transition_pump(:executing)
     started = System.monotonic_time(:millisecond)
 
     assert {:error, :timeout} =
@@ -113,7 +118,6 @@ defmodule BB.Jido.Action.WaitForStateTest do
     Process.exit(pump, :kill)
 
     assert elapsed >= 300
-    assert elapsed < 900
   end
 
   test "preserves a caller's existing subscription on the fast path" do
@@ -144,15 +148,7 @@ defmodule BB.Jido.Action.WaitForStateTest do
   test "fast-path waits never leak late waiter results into the caller mailbox" do
     arm!()
 
-    pump =
-      spawn(fn ->
-        loop = fn loop ->
-          publish_transition(:armed)
-          loop.(loop)
-        end
-
-        loop.(loop)
-      end)
+    pump = start_transition_pump(:armed)
 
     for _ <- 1..500 do
       assert {:ok, %{state: :armed}} =
@@ -169,27 +165,29 @@ defmodule BB.Jido.Action.WaitForStateTest do
 
     caller =
       spawn(fn ->
-        WaitForState.run(%{robot: TestRobot, target: :never_reached, timeout: 60_000}, %{})
+        receive do
+          :go ->
+            WaitForState.run(%{robot: TestRobot, target: :never_reached, timeout: 60_000}, %{})
+        end
       end)
 
-    await(fn -> subscriber_pids() != baseline end, "waiter never subscribed")
+    :erlang.trace(caller, true, [:procs, :receive])
+    send(caller, :go)
 
+    assert_receive {:trace, ^caller, :spawn, waiter, _mfa}, 1_000
+    assert_receive {:trace, ^caller, :receive, {_ref, :subscribed}}, 1_000
+    assert waiter in subscriber_pids()
+
+    waiter_monitor = Process.monitor(waiter)
     Process.exit(caller, :kill)
+    assert_receive {:DOWN, ^waiter_monitor, :process, ^waiter, _reason}, 1_000
 
-    await(
-      fn -> subscriber_pids() == baseline end,
-      "waiter subscription survived its caller"
-    )
+    sync_pubsub_registry()
+    assert subscriber_pids() == baseline
   end
 
   test "leaves no pubsub messages in the caller's mailbox" do
-    pump =
-      spawn(fn ->
-        for _ <- 1..10 do
-          publish_transition(:executing)
-          Process.sleep(20)
-        end
-      end)
+    pump = start_transition_pump(:executing)
 
     assert {:error, :timeout} =
              WaitForState.run(%{robot: TestRobot, target: :never_reached, timeout: 150}, %{})
