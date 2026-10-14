@@ -160,6 +160,7 @@ defmodule BB.Jido.Plugin.RobotGatingTest do
 
   describe "signal-routed gating through an agent" do
     setup do
+      notify_on_signal_processed()
       start_supervised!({Jido, name: @jido_instance})
       agent = start_supervised!({Jido.AgentServer, agent: GatedAgent, jido: @jido_instance})
       {:ok, agent: agent}
@@ -189,25 +190,35 @@ defmodule BB.Jido.Plugin.RobotGatingTest do
     end
   end
 
-  defp await_agent_state(agent, satisfied?, timeout_ms \\ 2_000) do
-    deadline = System.monotonic_time(:millisecond) + timeout_ms
-    poll_agent_state(agent, satisfied?, deadline)
+  def forward_signal_processed(_event, _measurements, _metadata, test_pid) do
+    send(test_pid, :agent_signal_processed)
   end
 
-  defp poll_agent_state(agent, satisfied?, deadline) do
+  defp notify_on_signal_processed do
+    handler_id = {__MODULE__, self()}
+
+    :telemetry.attach(
+      handler_id,
+      [:jido, :agent_server, :signal, :stop],
+      &__MODULE__.forward_signal_processed/4,
+      self()
+    )
+
+    on_exit(fn -> :telemetry.detach(handler_id) end)
+  end
+
+  defp await_agent_state(agent, satisfied?) do
     {:ok, server_state} = Jido.AgentServer.state(agent)
     state = server_state.agent.state
 
-    cond do
-      satisfied?.(state) ->
-        :ok
+    if satisfied?.(state) do
+      :ok
+    else
+      assert_receive :agent_signal_processed,
+                     2_000,
+                     "agent state never satisfied condition; last state: #{inspect(state)}"
 
-      System.monotonic_time(:millisecond) > deadline ->
-        flunk("agent state never satisfied condition; last state: #{inspect(state)}")
-
-      true ->
-        Process.sleep(20)
-        poll_agent_state(agent, satisfied?, deadline)
+      await_agent_state(agent, satisfied?)
     end
   end
 end

@@ -19,10 +19,11 @@ defmodule BB.Jido.Plugin.RobotIntegrationTest do
   @jido_instance __MODULE__.JidoInstance
 
   setup do
+    notify_on_signal_processed()
     start_supervised!({TestRobot, simulation: :kinematic})
     start_supervised!({Jido, name: @jido_instance})
     agent = start_supervised!({Jido.AgentServer, agent: TestAgent, jido: @jido_instance})
-    await_bridge_started(agent)
+    assert_bridge_started(agent)
     {:ok, agent: agent}
   end
 
@@ -62,55 +63,49 @@ defmodule BB.Jido.Plugin.RobotIntegrationTest do
     assert robot_state.robot == TestRobot
   end
 
-  # The bridge subscribes to BB.PubSub in its init, so once it appears among
-  # the agent's plugin children the subscription is established and no
-  # transition published afterwards can be missed.
-  defp await_bridge_started(agent, timeout_ms \\ 2_000) do
-    deadline = System.monotonic_time(:millisecond) + timeout_ms
-    poll_bridge_started(agent, deadline)
+  def forward_signal_processed(_event, _measurements, _metadata, test_pid) do
+    send(test_pid, :agent_signal_processed)
   end
 
-  defp poll_bridge_started(agent, deadline) do
+  defp notify_on_signal_processed do
+    handler_id = {__MODULE__, self()}
+
+    :telemetry.attach(
+      handler_id,
+      [:jido, :agent_server, :signal, :stop],
+      &__MODULE__.forward_signal_processed/4,
+      self()
+    )
+
+    on_exit(fn -> :telemetry.detach(handler_id) end)
+  end
+
+  # The agent server starts plugin children in `handle_continue/2`, before it
+  # handles any call, and the bridge subscribes to BB.PubSub in its init. So
+  # the first call already sees the bridge, and no transition published
+  # afterwards can be missed.
+  defp assert_bridge_started(agent) do
     {:ok, server_state} = Jido.AgentServer.state(agent)
 
-    bridge_started? =
-      Enum.any?(Map.keys(server_state.children), fn
-        {:plugin, BB.Jido.Plugin.Robot, _id} -> true
-        _other -> false
-      end)
-
-    cond do
-      bridge_started? ->
-        :ok
-
-      System.monotonic_time(:millisecond) > deadline ->
-        flunk("PubSubBridge was never started as a plugin child")
-
-      true ->
-        Process.sleep(10)
-        poll_bridge_started(agent, deadline)
-    end
+    assert Enum.any?(Map.keys(server_state.children), fn
+             {:plugin, BB.Jido.Plugin.Robot, _id} -> true
+             _other -> false
+           end),
+           "PubSubBridge was not started as a plugin child"
   end
 
-  defp await_agent_state(agent, satisfied?, timeout_ms \\ 2_000) do
-    deadline = System.monotonic_time(:millisecond) + timeout_ms
-    poll_agent_state(agent, satisfied?, deadline)
-  end
-
-  defp poll_agent_state(agent, satisfied?, deadline) do
+  defp await_agent_state(agent, satisfied?) do
     {:ok, server_state} = Jido.AgentServer.state(agent)
     state = server_state.agent.state
 
-    cond do
-      satisfied?.(state) ->
-        :ok
+    if satisfied?.(state) do
+      :ok
+    else
+      assert_receive :agent_signal_processed,
+                     2_000,
+                     "agent state never satisfied condition; last state: #{inspect(state)}"
 
-      System.monotonic_time(:millisecond) > deadline ->
-        flunk("agent state never satisfied condition; last state: #{inspect(state)}")
-
-      true ->
-        Process.sleep(20)
-        poll_agent_state(agent, satisfied?, deadline)
+      await_agent_state(agent, satisfied?)
     end
   end
 end
